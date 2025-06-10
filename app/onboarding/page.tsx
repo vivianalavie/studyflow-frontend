@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { BookOpen, ArrowRight, ArrowLeft } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const questions = [
   {
@@ -25,13 +26,13 @@ const questions = [
   },
   {
     id: 2,
-    question: "Do you prefer studying in the morning, afternoon, evening, or at night?",
-    type: "radio",
+    question: "When do you prefer studying?",
+    type: "study-preferences",
     options: [
-      { value: "morning", label: "Morning (6 AM - 12 PM)" },
-      { value: "afternoon", label: "Afternoon (12 PM - 6 PM)" },
-      { value: "evening", label: "Evening (6 PM - 10 PM)" },
-      { value: "night", label: "Night (10 PM - 6 AM)" },
+      { value: "morning", label: "Morning" },
+      { value: "afternoon", label: "Afternoon" },
+      { value: "evening", label: "Evening" },
+      { value: "night", label: "Night" },
     ],
   },
   {
@@ -66,8 +67,10 @@ export default function OnboardingPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState<Record<number, any>>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAnswer = (questionId: number, value: any) => {
+    setError(null)
     setAnswers((prev) => ({
       ...prev,
       [questionId]: value,
@@ -132,7 +135,7 @@ export default function OnboardingPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium mb-4">{question.question}</h3>
+              <h3 className="text-lg font-medium mb-6">{question.question}</h3>
 
               {question.type === "radio" && (
                 <RadioGroup value={currentAnswer || ""} onValueChange={(value) => handleAnswer(question.id, value)}>
@@ -143,6 +146,66 @@ export default function OnboardingPage() {
                     </div>
                   ))}
                 </RadioGroup>
+              )}
+
+              {question.type === "study-preferences" && (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label>Preference 1:</Label>
+                    <Select
+                      value={currentAnswer?.pref1 || ""}
+                      onValueChange={(value) => {
+                        const pref2 = currentAnswer?.pref2 || ""
+                        if (value === pref2) {
+                          setError("Please choose two preferences that differ!")
+                          return
+                        }
+                        handleAnswer(question.id, { ...currentAnswer, pref1: value })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your first preference" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {question.options?.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Preference 2:</Label>
+                    <Select
+                      value={currentAnswer?.pref2 || ""}
+                      onValueChange={(value) => {
+                        const pref1 = currentAnswer?.pref1 || ""
+                        if (value === pref1) {
+                          setError("Please choose two preferences that differ!")
+                          return
+                        }
+                        handleAnswer(question.id, { ...currentAnswer, pref2: value })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your second preference" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {question.options?.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {error && (
+                    <div className="text-red-500 text-sm mt-2">{error}</div>
+                  )}
+                </div>
               )}
 
               {question.type === "time" && (
@@ -189,7 +252,9 @@ export default function OnboardingPage() {
               <Button
                 onClick={handleNext}
                 disabled={
-                  !currentAnswer || (question.type === "checkbox" && (!currentAnswer || currentAnswer.length === 0))
+                  !currentAnswer ||
+                  (question.type === "checkbox" && (!currentAnswer || currentAnswer.length === 0)) ||
+                  (question.type === "study-preferences" && (!currentAnswer?.pref1 || !currentAnswer?.pref2))
                 }
               >
                 {currentQuestion === questions.length - 1 ? (
