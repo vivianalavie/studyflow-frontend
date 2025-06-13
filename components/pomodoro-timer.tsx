@@ -2,90 +2,113 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Play, Pause, RotateCcw, Timer } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Play, Pause, RotateCcw } from "lucide-react"
+import { Input } from "@/components/ui/input"
 
 export function PomodoroTimer() {
-  const [timeLeft, setTimeLeft] = useState(25 * 60) // 25 minutes in seconds
-  const [isActive, setIsActive] = useState(false)
-  const [mode, setMode] = useState<"work" | "break">("work")
+  const [timeLeft, setTimeLeft] = useState(25 * 60)
+  const [isRunning, setIsRunning] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState("")
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
+    let interval: NodeJS.Timeout
 
-    if (isActive && timeLeft > 0) {
+    if (isRunning && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft((timeLeft) => timeLeft - 1)
+        setTimeLeft((time) => time - 1)
       }, 1000)
     } else if (timeLeft === 0) {
-      // Timer finished
-      setIsActive(false)
-      if (mode === "work") {
-        setMode("break")
-        setTimeLeft(5 * 60) // 5 minute break
-      } else {
-        setMode("work")
-        setTimeLeft(25 * 60) // 25 minute work session
-      }
+      setIsRunning(false)
     }
 
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [isActive, timeLeft, mode])
+    return () => clearInterval(interval)
+  }, [isRunning, timeLeft])
 
   const toggleTimer = () => {
-    setIsActive(!isActive)
+    setIsRunning(!isRunning)
   }
 
   const resetTimer = () => {
-    setIsActive(false)
-    setMode("work")
+    setIsRunning(false)
     setTimeLeft(25 * 60)
+    setIsEditing(false)
   }
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`
+  }
+
+  const handleTimeClick = () => {
+    if (!isRunning) {
+      setIsEditing(true)
+      setEditValue(formatTime(timeLeft))
+    }
+  }
+
+  const handleTimeSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const [minutes, seconds] = editValue.split(":").map(Number)
+    if (!isNaN(minutes) && !isNaN(seconds) && minutes >= 0 && seconds >= 0 && seconds < 60) {
+      setTimeLeft(minutes * 60 + seconds)
+    }
+    setIsEditing(false)
   }
 
   return (
-    <Card className="w-64">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Timer className="h-4 w-4" />
-            <span className="text-sm font-medium">Pomodoro</span>
-          </div>
-          <Badge variant={mode === "work" ? "default" : "secondary"}>{mode === "work" ? "Work" : "Break"}</Badge>
+    <div className="flex flex-col items-center gap-8">
+      {isEditing ? (
+        <form onSubmit={handleTimeSubmit} className="flex items-center gap-2">
+          <Input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="text-[12rem] font-mono w-[24rem] text-center"
+            placeholder="MM:SS"
+            autoFocus
+            onBlur={handleTimeSubmit}
+          />
+        </form>
+      ) : (
+        <div 
+          className="text-[12rem] font-mono cursor-pointer select-none hover:opacity-80 transition-opacity" 
+          onClick={handleTimeClick}
+        >
+          {formatTime(timeLeft)}
         </div>
-
-        <div className="text-center mb-4">
-          <div className="text-2xl font-mono font-bold text-primary">{formatTime(timeLeft)}</div>
-        </div>
-
-        <div className="flex justify-center gap-2">
-          <Button size="sm" onClick={toggleTimer} className="flex-1">
-            {isActive ? (
-              <>
-                <Pause className="h-4 w-4 mr-1" />
-                Pause
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-1" />
-                Start
-              </>
-            )}
-          </Button>
-
-          <Button size="sm" variant="outline" onClick={resetTimer}>
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+      
+      <div className="flex gap-4">
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={toggleTimer}
+          className="w-32 h-12 text-lg"
+        >
+          {isRunning ? (
+            <>
+              <Pause className="h-6 w-6 mr-2" />
+              Pause
+            </>
+          ) : (
+            <>
+              <Play className="h-6 w-6 mr-2" />
+              Start
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={resetTimer}
+          className="w-32 h-12 text-lg"
+        >
+          <RotateCcw className="h-6 w-6 mr-2" />
+          Reset
+        </Button>
+      </div>
+    </div>
   )
 }
