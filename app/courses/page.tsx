@@ -19,40 +19,8 @@ import { Plus, Calendar, Edit, Trash2 } from "lucide-react"
 import { Course, getCourses } from "@/app/api/courses"
 import { toast } from "sonner"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-
-interface Assignment {
-  id: string
-  title: string
-  description: string
-  courseId: string
-  courseName: string
-  deadline: string
-  totalPoints: number
-  difficulty: "easy" | "medium" | "hard"
-}
-
-const mockAssignments: Assignment[] = [
-  {
-    id: "1",
-    title: "Calculus Problem Set 3",
-    description: "Integration and differentiation problems",
-    courseId: "1",
-    courseName: "Advanced Mathematics",
-    deadline: "2024-06-15",
-    totalPoints: 25,
-    difficulty: "medium",
-  },
-  {
-    id: "2",
-    title: "Quantum Mechanics Lab Report",
-    description: "Analysis of wave function experiments",
-    courseId: "2",
-    courseName: "Physics",
-    deadline: "2024-06-20",
-    totalPoints: 30,
-    difficulty: "hard",
-  },
-]
+import { Assignment } from "@/types/assignment"
+import { getAssignments } from "@/app/api/assignments"
 
 const courseColors = [
   { value: "blue", label: "Blue", class: "bg-blue-500" },
@@ -80,7 +48,7 @@ const colorClassMap: Record<string, string> = {
 export default function CoursesPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
-  const [assignments, setAssignments] = useState<Assignment[]>(mockAssignments)
+  const [assignments, setAssignments] = useState<Assignment[]>([])
   const [isAddingCourse, setIsAddingCourse] = useState(false)
   const [isAddingAssignment, setIsAddingAssignment] = useState(false)
   const [newCourse, setNewCourse] = useState({
@@ -114,13 +82,40 @@ export default function CoursesPage() {
     fetchCourses()
   }, [isLoaded, isSignedIn])
 
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      if (!isLoaded || !isSignedIn) return
+
+      try {
+        const fetchedAssignments = await getAssignments()
+        // Füge den Kursnamen zu jedem Assignment hinzu
+        const assignmentsWithCourseNames = fetchedAssignments.map(assignment => ({
+          ...assignment,
+          courseName: courses.find(course => course.id === assignment.courseId)?.name || "Unknown Course"
+        }))
+        setAssignments(assignmentsWithCourseNames)
+      } catch (error) {
+        console.error('Error fetching assignments:', error)
+        toast.error('Error fetching assignments')
+      }
+    }
+
+    if (courses.length > 0) {
+      fetchAssignments()
+    }
+  }, [isLoaded, isSignedIn, courses])
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case "easy":
+      case "VERY_EASY":
         return "bg-green-100 text-green-800"
-      case "medium":
+      case "EASY":
+        return "bg-green-100 text-green-800"
+      case "MEDIUM":
         return "bg-yellow-100 text-yellow-800"
-      case "hard":
+      case "HARD":
+        return "bg-orange-100 text-orange-800"
+      case "VERY_HARD":
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
@@ -587,7 +582,7 @@ export default function CoursesPage() {
                             <Calendar className="h-4 w-4" />
                             {new Date(assignment.deadline).toLocaleDateString()}
                           </div>
-                          <span>{assignment.totalPoints} pts</span>
+                          <span>{assignment.totalAchievablePoints} pts</span>
                         </div>
                       </div>
                     </CardContent>
