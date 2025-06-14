@@ -2,12 +2,13 @@
 
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { WeeklyCalendar } from "@/components/weekly-calendar"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { PomodoroTimer } from "@/components/pomodoro-timer"
 import { Separator } from "@/components/ui/separator"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { Card } from "@/components/ui/card"
 
-export default function DashboardPage() {
+export default function PomodoroPage() {
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -18,19 +19,23 @@ export default function DashboardPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                <BreadcrumbPage>Pomodoro Timer</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="grid auto-rows-min gap-4">
-            <div className="h-[600px] rounded-xl bg-muted/50">
-              <WeeklyCalendar />
-            </div>
+          <div className="w-full max-w-4xl mx-auto">
+            <Card className="p-16">
+              <div className="flex flex-col items-center gap-12">
+                <div className="text-[12rem] font-mono">
+                  <PomodoroTimer />
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
   )
-}
+} 

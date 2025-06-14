@@ -1,9 +1,10 @@
 "use client"
 
 import type * as React from "react"
-import { Calendar, Home, BookOpen, Settings, Clock, CalendarDays } from "lucide-react"
+import { Calendar, Home, BookOpen, Settings, Clock, CalendarDays, Moon, Sun } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useTheme } from "next-themes"
 
 import {
   Sidebar,
@@ -18,6 +19,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 
 const menuItems = [
   {
@@ -54,6 +56,7 @@ const menuItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
 
   return (
     <Sidebar variant="inset" {...props}>
@@ -88,7 +91,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="p-4 text-xs text-muted-foreground">© 2024 StudyFlow</div>
+        <div className="flex items-center justify-between p-4">
+          <div className="text-xs text-muted-foreground">© 2024 StudyFlow</div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            className="h-8 w-8"
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
