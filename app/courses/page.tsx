@@ -108,7 +108,7 @@ export default function CoursesPage() {
         setCourses(fetchedCourses)
       } catch (error) {
         console.error('Error fetching courses:', error)
-        toast.error('Fehler beim Laden der Kurse')
+        toast.error('Error fetching courses')
       }
     }
     fetchCourses()
@@ -134,7 +134,7 @@ export default function CoursesPage() {
     try {
       const token = await window.Clerk?.session?.getToken()
       if (!token) {
-        toast.error("Nicht eingeloggt")
+        toast.error("Not logged in")
         return
       }
 
@@ -162,10 +162,10 @@ export default function CoursesPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Fehler beim Erstellen des Kurses')
+        throw new Error('Error creating course')
       }
 
-      toast.success("Kurs erfolgreich erstellt")
+      toast.success("Course created successfully")
       setIsAddingCourse(false)
       // Felder zurücksetzen
       setNewCourse({
@@ -184,7 +184,7 @@ export default function CoursesPage() {
       setCourses(fetchedCourses)
     } catch (error) {
       console.error('Error creating course:', error)
-      toast.error("Fehler beim Erstellen des Kurses")
+      toast.error("Error creating course")
     }
   }
 
@@ -193,7 +193,7 @@ export default function CoursesPage() {
     try {
       const token = await window.Clerk?.session?.getToken();
       if (!token) {
-        toast.error("Nicht eingeloggt");
+        toast.error("Not logged in");
         return;
       }
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/courses/delete/${courseToDelete}`, {
@@ -203,9 +203,9 @@ export default function CoursesPage() {
         }
       });
       if (!response.ok) {
-        throw new Error('Fehler beim Löschen des Kurses');
+        throw new Error('Error deleting course');
       }
-      toast.success("Kurs erfolgreich gelöscht");
+      toast.success("Course deleted successfully");
       setDeleteDialogOpen(false);
       setCourseToDelete(null);
       // Aktualisiere die Kursliste
@@ -213,7 +213,7 @@ export default function CoursesPage() {
       setCourses(fetchedCourses);
     } catch (error) {
       console.error('Error deleting course:', error);
-      toast.error("Fehler beim Löschen des Kurses");
+      toast.error("Error deleting course");
     }
   };
 
@@ -238,7 +238,7 @@ export default function CoursesPage() {
     try {
       const token = await window.Clerk?.session?.getToken();
       if (!token) {
-        toast.error("Nicht eingeloggt");
+        toast.error("Not logged in");
         return;
       }
       const payload = {
@@ -263,9 +263,9 @@ export default function CoursesPage() {
         body: JSON.stringify(payload)
       });
       if (!response.ok) {
-        throw new Error('Fehler beim Aktualisieren des Kurses');
+        throw new Error('Error updating course');
       }
-      toast.success("Kurs erfolgreich aktualisiert");
+      toast.success("Course updated successfully");
       setIsEditingCourse(false);
       setEditCourseId(null);
       setNewCourse({
@@ -284,7 +284,7 @@ export default function CoursesPage() {
       setCourses(fetchedCourses);
     } catch (error) {
       console.error('Error updating course:', error);
-      toast.error("Fehler beim Aktualisieren des Kurses");
+      toast.error("Error updating course");
     }
   };
 
@@ -601,9 +601,12 @@ export default function CoursesPage() {
               <DialogHeader>
                 <DialogTitle>Delete Course</DialogTitle>
               </DialogHeader>
-              <div className="text-center text-red-600 text-base font-medium leading-relaxed mb-4">
-                If you delete this course, it will be permanently removed<br />
-                and all associated assignments will also be deleted!
+              <div className="flex flex-col items-center mb-4">
+                <span className="text-red-600 font-bold text-lg mb-2">Warning</span>
+                <span className="text-center text-base text-black leading-relaxed">
+                  If you delete this course, it will be permanently removed<br />
+                  and all associated assignments will also be deleted!
+                </span>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
