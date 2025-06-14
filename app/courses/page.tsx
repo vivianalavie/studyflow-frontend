@@ -18,6 +18,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/co
 import { Plus, Calendar, Edit, Trash2 } from "lucide-react"
 import { Course, getCourses } from "@/app/api/courses"
 import { toast } from "sonner"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 interface Assignment {
   id: string
@@ -53,12 +54,34 @@ const mockAssignments: Assignment[] = [
   },
 ]
 
+const courseColors = [
+  { value: "blue", label: "Blue", class: "bg-blue-500" },
+  { value: "green", label: "Green", class: "bg-green-500" },
+  { value: "red", label: "Red", class: "bg-red-500" },
+  { value: "yellow", label: "Yellow", class: "bg-yellow-400" },
+  { value: "purple", label: "Purple", class: "bg-purple-500" },
+  { value: "pink", label: "Pink", class: "bg-pink-500" },
+  { value: "indigo", label: "Indigo", class: "bg-indigo-500" },
+  { value: "teal", label: "Teal", class: "bg-teal-500" },
+]
+
 export default function CoursesPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>(mockAssignments)
   const [isAddingCourse, setIsAddingCourse] = useState(false)
   const [isAddingAssignment, setIsAddingAssignment] = useState(false)
+  const [newCourse, setNewCourse] = useState({
+    name: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    professorName: "",
+    totalPoints: 0,
+    totalWorkloadHours: 0,
+    totalSelfWorkHours: 0,
+    color: "blue"
+  })
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -85,6 +108,67 @@ export default function CoursesPage() {
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  // Hilfsfunktion zum Vergleichen der Datumswerte
+  const isEndDateBeforeStartDate = newCourse.startDate && newCourse.endDate && new Date(newCourse.endDate) < new Date(newCourse.startDate)
+
+  const handleAddCourse = async () => {
+    try {
+      const token = await window.Clerk?.session?.getToken()
+      if (!token) {
+        toast.error("Nicht eingeloggt")
+        return
+      }
+
+      const payload = {
+        id: null,
+        createdBy: null,
+        name: newCourse.name,
+        description: newCourse.description,
+        startDate: newCourse.startDate ? newCourse.startDate : null,
+        endDate: newCourse.endDate ? newCourse.endDate : null,
+        professorName: newCourse.professorName,
+        totalPoints: newCourse.totalPoints,
+        totalWorkloadHours: newCourse.totalWorkloadHours,
+        totalSelfWorkHours: newCourse.totalSelfWorkHours,
+        color: newCourse.color
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/courses/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Erstellen des Kurses')
+      }
+
+      toast.success("Kurs erfolgreich erstellt")
+      setIsAddingCourse(false)
+      // Felder zurücksetzen
+      setNewCourse({
+        name: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        professorName: "",
+        totalPoints: 0,
+        totalWorkloadHours: 0,
+        totalSelfWorkHours: 0,
+        color: "blue"
+      })
+      // Aktualisiere die Kursliste
+      const fetchedCourses = await getCourses()
+      setCourses(fetchedCourses)
+    } catch (error) {
+      console.error('Error creating course:', error)
+      toast.error("Fehler beim Erstellen des Kurses")
     }
   }
 
@@ -120,28 +204,137 @@ export default function CoursesPage() {
                       Add Course
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Add New Course</DialogTitle>
+                      <DialogTitle className="text-2xl">Add New Course</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="course-name">Course Name</Label>
-                        <Input id="course-name" placeholder="Enter course name" />
+                    <div className="grid grid-cols-2 gap-6 py-4">
+                      <div className="col-span-2">
+                        <Label htmlFor="course-name" className="text-base">Course Name</Label>
+                        <Input 
+                          id="course-name" 
+                          placeholder="Enter course name"
+                          value={newCourse.name}
+                          onChange={(e) => setNewCourse({...newCourse, name: e.target.value})}
+                          className="mt-2 h-10 text-base"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="course-description" className="text-base">Description</Label>
+                        <Textarea 
+                          id="course-description" 
+                          placeholder="Course description"
+                          value={newCourse.description}
+                          onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
+                          className="mt-2 min-h-[100px] text-base"
+                        />
                       </div>
                       <div>
-                        <Label htmlFor="course-description">Description</Label>
-                        <Textarea id="course-description" placeholder="Course description" />
+                        <Label htmlFor="professor-name" className="text-base">Professor Name</Label>
+                        <Input 
+                          id="professor-name" 
+                          placeholder="Professor name"
+                          value={newCourse.professorName}
+                          onChange={(e) => setNewCourse({...newCourse, professorName: e.target.value})}
+                          className="mt-2 h-10 text-base"
+                        />
                       </div>
                       <div>
-                        <Label htmlFor="professor">Professor</Label>
-                        <Input id="professor" placeholder="Professor name" />
+                        <Label htmlFor="total-points" className="text-base">Total Points</Label>
+                        <Input 
+                          id="total-points" 
+                          type="number" 
+                          placeholder="100"
+                          value={newCourse.totalPoints}
+                          onChange={(e) => setNewCourse({...newCourse, totalPoints: parseInt(e.target.value) || 0})}
+                          className="mt-2 h-10 text-base"
+                        />
                       </div>
                       <div>
-                        <Label htmlFor="total-points">Total Points</Label>
-                        <Input id="total-points" type="number" placeholder="100" />
+                        <Label htmlFor="workload-hours" className="text-base">Workload Hours</Label>
+                        <Input 
+                          id="workload-hours" 
+                          type="number" 
+                          placeholder="40"
+                          value={newCourse.totalWorkloadHours}
+                          onChange={(e) => setNewCourse({...newCourse, totalWorkloadHours: parseInt(e.target.value) || 0})}
+                          className="mt-2 h-10 text-base"
+                        />
                       </div>
-                      <Button className="w-full">Add Course</Button>
+                      <div>
+                        <Label htmlFor="self-work-hours" className="text-base">Self Work Hours</Label>
+                        <Input 
+                          id="self-work-hours" 
+                          type="number" 
+                          placeholder="20"
+                          value={newCourse.totalSelfWorkHours}
+                          onChange={(e) => setNewCourse({...newCourse, totalSelfWorkHours: parseInt(e.target.value) || 0})}
+                          className="mt-2 h-10 text-base"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="start-date" className="text-base">Start Date</Label>
+                        <Input 
+                          id="start-date" 
+                          type="date"
+                          value={newCourse.startDate}
+                          onChange={(e) => setNewCourse({...newCourse, startDate: e.target.value})}
+                          className="mt-2 h-10 text-base"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="end-date" className="text-base">End Date</Label>
+                        <Input 
+                          id="end-date" 
+                          type="date"
+                          value={newCourse.endDate}
+                          onChange={(e) => setNewCourse({...newCourse, endDate: e.target.value})}
+                          className="mt-2 h-10 text-base"
+                        />
+                      </div>
+                      {isEndDateBeforeStartDate && (
+                        <div className="col-span-2 mt-2 flex justify-center">
+                          <span className="text-red-500 text-sm text-center">End date cannot be before start date!</span>
+                        </div>
+                      )}
+                      <div className="col-span-2">
+                        <Label className="text-base mb-4 block">Course Color</Label>
+                        <RadioGroup 
+                          value={newCourse.color} 
+                          onValueChange={(value) => setNewCourse({...newCourse, color: value})}
+                          className="grid grid-cols-4 gap-4"
+                        >
+                          {courseColors.map((color) => (
+                            <div key={color.value} className="flex items-center justify-center">
+                              <RadioGroupItem value={color.value} id={color.value} className="peer sr-only" />
+                              <Label
+                                htmlFor={color.value}
+                                className={`flex flex-col items-center justify-center w-28 h-28 rounded-xl border-4 bg-popover cursor-pointer transition-all
+                                  ${newCourse.color === color.value ? 'border-primary' : 'border-muted'}`}
+                              >
+                                <div className={`w-8 h-8 rounded-full ${color.class} mb-3`} />
+                                <span
+                                  className={
+                                    newCourse.color === color.value
+                                      ? "text-black font-bold"
+                                      : "text-gray-400 font-normal"
+                                  }
+                                >
+                                  {color.label}
+                                </span>
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                      <Button variant="outline" onClick={() => setIsAddingCourse(false)} className="h-10 px-6">
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddCourse} className="h-10 px-6" disabled={!!isEndDateBeforeStartDate}>
+                        Add Course
+                      </Button>
                     </div>
                   </DialogContent>
                 </Dialog>
