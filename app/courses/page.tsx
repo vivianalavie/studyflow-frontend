@@ -45,6 +45,17 @@ const colorClassMap: Record<string, string> = {
   teal: "bg-teal-500",
 }
 
+const borderColorClassMap: Record<string, string> = {
+  blue: "border-blue-500 text-blue-500",
+  green: "border-green-500 text-green-500",
+  red: "border-red-500 text-red-500",
+  yellow: "border-yellow-400 text-yellow-400",
+  purple: "border-purple-500 text-purple-500",
+  pink: "border-pink-500 text-pink-500",
+  indigo: "border-indigo-500 text-indigo-500",
+  teal: "border-teal-500 text-teal-500",
+}
+
 export default function CoursesPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
@@ -88,12 +99,17 @@ export default function CoursesPage() {
 
       try {
         const fetchedAssignments = await getAssignments()
-        // Füge den Kursnamen zu jedem Assignment hinzu
-        const assignmentsWithCourseNames = fetchedAssignments.map(assignment => ({
-          ...assignment,
-          courseName: courses.find(course => course.id === assignment.courseId)?.name || "Unknown Course"
-        }))
-        setAssignments(assignmentsWithCourseNames)
+        // Füge den Kursnamen und die Kursfarbe zu jedem Assignment hinzu
+        const assignmentsWithCourseInfo = fetchedAssignments.map(assignment => {
+          const course = courses.find(course => course.id === assignment.courseId)
+          return {
+            ...assignment,
+            courseName: course?.name || "Unknown Course",
+            courseColor: course?.color || "blue",
+            courseTotalPoints: course?.totalPoints || 0
+          }
+        })
+        setAssignments(assignmentsWithCourseInfo)
       } catch (error) {
         console.error('Error fetching assignments:', error)
         toast.error('Error fetching assignments')
@@ -574,7 +590,12 @@ export default function CoursesPage() {
                     <CardContent>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <Badge variant="outline">{assignment.courseName}</Badge>
+                          <Badge 
+                            variant="outline" 
+                            className={borderColorClassMap[assignment.courseColor || "blue"]}
+                          >
+                            {assignment.courseName}
+                          </Badge>
                           <Badge className={getDifficultyColor(assignment.difficulty)}>{assignment.difficulty}</Badge>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -582,7 +603,7 @@ export default function CoursesPage() {
                             <Calendar className="h-4 w-4" />
                             {new Date(assignment.deadline).toLocaleDateString()}
                           </div>
-                          <span>{assignment.totalAchievablePoints} pts</span>
+                          <span>{assignment.totalAchievablePoints}/{assignment.courseTotalPoints} pts</span>
                         </div>
                       </div>
                     </CardContent>

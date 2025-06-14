@@ -8,5 +8,7 @@ export interface Assignment {
   totalAchievablePoints: number
   deadline: string
   difficulty: Difficulty
-  courseName?: string // Optional, wird später hinzugefügt
+  courseName?: string
+  courseColor?: string
+  courseTotalPoints?: number
 } 
