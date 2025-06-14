@@ -3,8 +3,8 @@
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { WeeklyCalendar } from "@/components/weekly-calendar"
-import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 
 export default function DashboardPage() {
@@ -25,7 +25,7 @@ export default function DashboardPage() {
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
           <div className="grid auto-rows-min gap-4">
-            <div className="aspect-[4/3] rounded-xl bg-muted/50">
+            <div className="h-[600px] rounded-xl bg-muted/50">
               <WeeklyCalendar />
             </div>
           </div>

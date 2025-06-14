@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
@@ -94,6 +94,36 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    const checkUserExists = async () => {
+      if (!isLoaded || !isSignedIn || !userId) return
+
+      try {
+        const token = await window.Clerk?.session?.getToken()
+        if (!token) return
+
+        const response = await fetch(`http://localhost:8080/api/users/exists`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error('Fehler beim Prüfen des Benutzerstatus')
+        }
+
+        const userExists = await response.json()
+        if (userExists) {
+          router.push('/dashboard')
+        }
+      } catch (err) {
+        console.error('Fehler beim Prüfen des Benutzerstatus:', err)
+      }
+    }
+
+    checkUserExists()
+  }, [isLoaded, isSignedIn, userId, router])
+
   const handleAnswer = (questionId: number, value: any) => {
     setError(null)
     setAnswers((prev) => ({
@@ -138,7 +168,7 @@ export default function OnboardingPage() {
   
       const userData = {
         username: answers[1],
-        maxStudyDuration: parseFloat(answers[2]),
+        maxStudyDuration: parseFloat(answers[2]) * 60,
         startLearningTime: answers[4],
         endLearningTime: answers[5],
         blackoutWeekdays: answers[6] || [],
