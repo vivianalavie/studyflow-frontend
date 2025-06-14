@@ -96,6 +96,8 @@ export default function CoursesPage() {
   })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
+  const [isEditingCourse, setIsEditingCourse] = useState(false);
+  const [editCourseId, setEditCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -212,6 +214,77 @@ export default function CoursesPage() {
     } catch (error) {
       console.error('Error deleting course:', error);
       toast.error("Fehler beim Löschen des Kurses");
+    }
+  };
+
+  const openEditCourseDialog = (course: Course) => {
+    setNewCourse({
+      name: course.name || "",
+      description: course.description || "",
+      startDate: course.startDate || "",
+      endDate: course.endDate || "",
+      professorName: course.professorName || "",
+      totalPoints: course.totalPoints || 0,
+      totalWorkloadHours: course.totalWorkloadHours || 0,
+      totalSelfWorkHours: course.totalSelfWorkHours || 0,
+      color: course.color || "blue"
+    });
+    setEditCourseId(course.id);
+    setIsEditingCourse(true);
+  };
+
+  const handleUpdateCourse = async () => {
+    if (!editCourseId) return;
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      if (!token) {
+        toast.error("Nicht eingeloggt");
+        return;
+      }
+      const payload = {
+        id: editCourseId,
+        createdBy: null, // Wird im Backend gesetzt
+        name: newCourse.name,
+        description: newCourse.description,
+        startDate: newCourse.startDate ? newCourse.startDate : null,
+        endDate: newCourse.endDate ? newCourse.endDate : null,
+        professorName: newCourse.professorName,
+        totalPoints: newCourse.totalPoints,
+        totalWorkloadHours: newCourse.totalWorkloadHours,
+        totalSelfWorkHours: newCourse.totalSelfWorkHours,
+        color: newCourse.color
+      };
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/courses/edit/${editCourseId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        throw new Error('Fehler beim Aktualisieren des Kurses');
+      }
+      toast.success("Kurs erfolgreich aktualisiert");
+      setIsEditingCourse(false);
+      setEditCourseId(null);
+      setNewCourse({
+        name: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        professorName: "",
+        totalPoints: 0,
+        totalWorkloadHours: 0,
+        totalSelfWorkHours: 0,
+        color: "blue"
+      });
+      // Aktualisiere die Kursliste
+      const fetchedCourses = await getCourses();
+      setCourses(fetchedCourses);
+    } catch (error) {
+      console.error('Error updating course:', error);
+      toast.error("Fehler beim Aktualisieren des Kurses");
     }
   };
 
@@ -396,7 +469,7 @@ export default function CoursesPage() {
                             <CardTitle className="text-lg">{course.name}</CardTitle>
                           </div>
                           <div className="flex gap-1">
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" onClick={() => openEditCourseDialog(course)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button size="sm" variant="ghost" onClick={() => { setCourseToDelete(course.id); setDeleteDialogOpen(true); }}>
@@ -538,6 +611,141 @@ export default function CoursesPage() {
                 </Button>
                 <Button onClick={handleDeleteCourse} className="bg-red-600 hover:bg-red-700 text-white" >
                   Delete course
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isEditingCourse} onOpenChange={setIsEditingCourse}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Course</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-6 py-4">
+                <div className="col-span-2">
+                  <Label htmlFor="course-name" className="text-base">Course Name</Label>
+                  <Input
+                    id="course-name"
+                    placeholder="Enter course name"
+                    value={newCourse.name}
+                    onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="course-description" className="text-base">Description</Label>
+                  <Textarea
+                    id="course-description"
+                    placeholder="Course description"
+                    value={newCourse.description}
+                    onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
+                    className="mt-2 min-h-[100px] text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="professor-name" className="text-base">Professor Name</Label>
+                  <Input
+                    id="professor-name"
+                    placeholder="Professor name"
+                    value={newCourse.professorName}
+                    onChange={(e) => setNewCourse({ ...newCourse, professorName: e.target.value })}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="total-points" className="text-base">Total Points</Label>
+                  <Input
+                    id="total-points"
+                    type="number"
+                    placeholder="100"
+                    value={newCourse.totalPoints}
+                    onChange={(e) => setNewCourse({ ...newCourse, totalPoints: parseInt(e.target.value) || 0 })}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="workload-hours" className="text-base">Workload Hours</Label>
+                  <Input
+                    id="workload-hours"
+                    type="number"
+                    placeholder="40"
+                    value={newCourse.totalWorkloadHours}
+                    onChange={(e) => setNewCourse({ ...newCourse, totalWorkloadHours: parseInt(e.target.value) || 0 })}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="self-work-hours" className="text-base">Self Work Hours</Label>
+                  <Input
+                    id="self-work-hours"
+                    type="number"
+                    placeholder="20"
+                    value={newCourse.totalSelfWorkHours}
+                    onChange={(e) => setNewCourse({ ...newCourse, totalSelfWorkHours: parseInt(e.target.value) || 0 })}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="start-date" className="text-base">Start Date</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={newCourse.startDate}
+                    onChange={(e) => setNewCourse({ ...newCourse, startDate: e.target.value })}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end-date" className="text-base">End Date</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={newCourse.endDate}
+                    onChange={(e) => setNewCourse({ ...newCourse, endDate: e.target.value })}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                {isEndDateBeforeStartDate && (
+                  <div className="col-span-2 mt-2 flex justify-center">
+                    <span className="text-red-500 text-sm text-center">End date cannot be before start date!</span>
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <Label className="text-base mb-4 block">Course Color</Label>
+                  <RadioGroup
+                    value={newCourse.color}
+                    onValueChange={(value) => setNewCourse({ ...newCourse, color: value })}
+                    className="grid grid-cols-4 gap-4"
+                  >
+                    {courseColors.map((color) => (
+                      <div key={color.value} className="flex items-center justify-center">
+                        <RadioGroupItem value={color.value} id={color.value} className="peer sr-only" />
+                        <Label
+                          htmlFor={color.value}
+                          className={`flex flex-col items-center justify-center w-28 h-28 rounded-xl border-4 bg-popover cursor-pointer transition-all
+                            ${newCourse.color === color.value ? 'border-primary' : 'border-muted'}`}
+                        >
+                          <div className={`w-8 h-8 rounded-full ${color.class} mb-3`} />
+                          <span
+                            className={
+                              newCourse.color === color.value
+                                ? "text-black font-bold"
+                                : "text-gray-400 font-normal"
+                            }
+                          >
+                            {color.label}
+                          </span>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={() => setIsEditingCourse(false)} className="h-10 px-6">
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateCourse} className="h-10 px-6" disabled={!!isEndDateBeforeStartDate}>
+                  Update Course
                 </Button>
               </div>
             </DialogContent>
