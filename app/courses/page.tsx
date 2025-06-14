@@ -65,6 +65,18 @@ const courseColors = [
   { value: "teal", label: "Teal", class: "bg-teal-500" },
 ]
 
+// Mapping von Farbnamen zu Tailwind-Klassen
+const colorClassMap: Record<string, string> = {
+  blue: "bg-blue-500",
+  green: "bg-green-500",
+  red: "bg-red-500",
+  yellow: "bg-yellow-400",
+  purple: "bg-purple-500",
+  pink: "bg-pink-500",
+  indigo: "bg-indigo-500",
+  teal: "bg-teal-500",
+}
+
 export default function CoursesPage() {
   const { isLoaded, isSignedIn } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
@@ -82,6 +94,8 @@ export default function CoursesPage() {
     totalSelfWorkHours: 0,
     color: "blue"
   })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -171,6 +185,35 @@ export default function CoursesPage() {
       toast.error("Fehler beim Erstellen des Kurses")
     }
   }
+
+  const handleDeleteCourse = async () => {
+    if (!courseToDelete) return;
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      if (!token) {
+        toast.error("Nicht eingeloggt");
+        return;
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/courses/delete/${courseToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Fehler beim Löschen des Kurses');
+      }
+      toast.success("Kurs erfolgreich gelöscht");
+      setDeleteDialogOpen(false);
+      setCourseToDelete(null);
+      // Aktualisiere die Kursliste
+      const fetchedCourses = await getCourses();
+      setCourses(fetchedCourses);
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast.error("Fehler beim Löschen des Kurses");
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -341,51 +384,55 @@ export default function CoursesPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {courses.map((course) => (
-                  <Card key={course.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-blue-500" />
-                          <CardTitle className="text-lg">{course.name}</CardTitle>
+                {courses.map((course) => {
+                  const color = course.color || "blue";
+                  const colorClass = colorClassMap[color] || colorClassMap["blue"];
+                  return (
+                    <Card key={course.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${colorClass}`} />
+                            <CardTitle className="text-lg">{course.name}</CardTitle>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setCourseToDelete(course.id); setDeleteDialogOpen(true); }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <CardDescription>{course.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Professor:</span>
+                            <span>{course.professorName}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Total Points:</span>
+                            <span>{course.totalPoints}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Workload Hours:</span>
+                            <span>{course.totalWorkloadHours}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Self Work Hours:</span>
+                            <span>{course.totalSelfWorkHours}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Duration:</span>
+                            <span>{new Date(course.startDate).toLocaleDateString()} - {new Date(course.endDate).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                      </div>
-                      <CardDescription>{course.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Professor:</span>
-                          <span>{course.professorName}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Total Points:</span>
-                          <span>{course.totalPoints}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Workload Hours:</span>
-                          <span>{course.totalWorkloadHours}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Self Work Hours:</span>
-                          <span>{course.totalSelfWorkHours}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Duration:</span>
-                          <span>{new Date(course.startDate).toLocaleDateString()} - {new Date(course.endDate).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
             </TabsContent>
 
@@ -476,6 +523,25 @@ export default function CoursesPage() {
               </div>
             </TabsContent>
           </Tabs>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Delete Course</DialogTitle>
+              </DialogHeader>
+              <div className="text-center text-red-600 text-base font-medium leading-relaxed mb-4">
+                If you delete this course, it will be permanently removed<br />
+                and all associated assignments will also be deleted!
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleDeleteCourse} className="bg-red-600 hover:bg-red-700 text-white" >
+                  Delete course
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </SidebarInset>
     </SidebarProvider>
