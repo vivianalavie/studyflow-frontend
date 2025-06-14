@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useAuth } from "@clerk/nextjs"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Button } from "@/components/ui/button"
@@ -15,15 +16,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { Plus, Calendar, Edit, Trash2 } from "lucide-react"
-
-interface Course {
-  id: string
-  name: string
-  description: string
-  professor: string
-  totalPoints: number
-  color: string
-}
+import { Course, getCourses } from "@/app/api/courses"
+import { toast } from "sonner"
 
 interface Assignment {
   id: string
@@ -35,25 +29,6 @@ interface Assignment {
   totalPoints: number
   difficulty: "easy" | "medium" | "hard"
 }
-
-const mockCourses: Course[] = [
-  {
-    id: "1",
-    name: "Advanced Mathematics",
-    description: "Calculus, Linear Algebra, and Differential Equations",
-    professor: "Dr. Smith",
-    totalPoints: 100,
-    color: "bg-blue-500",
-  },
-  {
-    id: "2",
-    name: "Physics",
-    description: "Quantum Mechanics and Thermodynamics",
-    professor: "Dr. Johnson",
-    totalPoints: 100,
-    color: "bg-green-500",
-  },
-]
 
 const mockAssignments: Assignment[] = [
   {
@@ -79,10 +54,26 @@ const mockAssignments: Assignment[] = [
 ]
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>(mockCourses)
+  const { isLoaded, isSignedIn } = useAuth()
+  const [courses, setCourses] = useState<Course[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>(mockAssignments)
   const [isAddingCourse, setIsAddingCourse] = useState(false)
   const [isAddingAssignment, setIsAddingAssignment] = useState(false)
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (!isLoaded || !isSignedIn) return
+
+      try {
+        const fetchedCourses = await getCourses()
+        setCourses(fetchedCourses)
+      } catch (error) {
+        console.error('Error fetching courses:', error)
+        toast.error('Fehler beim Laden der Kurse')
+      }
+    }
+    fetchCourses()
+  }, [isLoaded, isSignedIn])
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -162,7 +153,7 @@ export default function CoursesPage() {
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${course.color}`} />
+                          <div className="w-3 h-3 rounded-full bg-blue-500" />
                           <CardTitle className="text-lg">{course.name}</CardTitle>
                         </div>
                         <div className="flex gap-1">
@@ -180,11 +171,23 @@ export default function CoursesPage() {
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span>Professor:</span>
-                          <span>{course.professor}</span>
+                          <span>{course.professorName}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span>Total Points:</span>
                           <span>{course.totalPoints}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Workload Hours:</span>
+                          <span>{course.totalWorkloadHours}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Self Work Hours:</span>
+                          <span>{course.totalSelfWorkHours}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Duration:</span>
+                          <span>{new Date(course.startDate).toLocaleDateString()} - {new Date(course.endDate).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </CardContent>
