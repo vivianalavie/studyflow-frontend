@@ -97,6 +97,8 @@ export default function CoursesPage() {
   });
   const [deleteAssignmentDialogOpen, setDeleteAssignmentDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(null);
+  const [isEditingAssignment, setIsEditingAssignment] = useState(false);
+  const [editAssignmentId, setEditAssignmentId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -420,6 +422,93 @@ export default function CoursesPage() {
     }
   };
 
+  const openEditAssignmentDialog = (assignment: Assignment) => {
+    setNewAssignment({
+      title: assignment.title,
+      description: assignment.description,
+      courseId: assignment.courseId,
+      totalAchievablePoints: assignment.totalAchievablePoints,
+      deadline: assignment.deadline ? assignment.deadline.slice(0, 16) : "",
+      difficulty: assignment.difficulty as Difficulty
+    });
+    setEditAssignmentId(assignment.id);
+    setIsEditingAssignment(true);
+  };
+
+  const handleUpdateAssignment = async () => {
+    if (!editAssignmentId) return;
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      if (!token) {
+        toast.error("Not logged in");
+        return;
+      }
+      // Deadline umwandeln wie beim Erstellen
+      let deadlineWithOffset = "";
+      if (newAssignment.deadline) {
+        const date = new Date(newAssignment.deadline);
+        const tzOffsetMinutes = date.getTimezoneOffset();
+        const absOffset = Math.abs(tzOffsetMinutes);
+        const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+        const offsetMinutes = String(absOffset % 60).padStart(2, '0');
+        const sign = tzOffsetMinutes > 0 ? '-' : '+';
+        const offset = `${sign}${offsetHours}:${offsetMinutes}`;
+        const yyyy = date.getFullYear();
+        const MM = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        const ss = String(date.getSeconds()).padStart(2, '0');
+        deadlineWithOffset = `${yyyy}-${MM}-${dd}T${hh}:${min}:${ss}${offset}`;
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/assignments/edit/${editAssignmentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          id: editAssignmentId,
+          title: newAssignment.title,
+          description: newAssignment.description,
+          courseId: newAssignment.courseId,
+          totalAchievablePoints: newAssignment.totalAchievablePoints,
+          deadline: deadlineWithOffset,
+          difficulty: newAssignment.difficulty
+        })
+      });
+      if (!response.ok) {
+        throw new Error('Error updating assignment');
+      }
+      toast.success("Assignment updated successfully");
+      setIsEditingAssignment(false);
+      setEditAssignmentId(null);
+      setNewAssignment({
+        title: "",
+        description: "",
+        courseId: "",
+        totalAchievablePoints: 0,
+        deadline: "",
+        difficulty: "NORMAL"
+      });
+      // Aktualisiere die Assignment-Liste
+      const fetchedAssignments = await getAssignments();
+      const assignmentsWithCourseInfo = fetchedAssignments.map(assignment => {
+        const course = courses.find(course => course.id === assignment.courseId);
+        return {
+          ...assignment,
+          courseName: course?.name || "Unknown Course",
+          courseColor: course?.color || "blue",
+          courseTotalPoints: course?.totalPoints || 0
+        };
+      });
+      setAssignments(assignmentsWithCourseInfo);
+    } catch (error) {
+      console.error('Error updating assignment:', error);
+      toast.error("Error updating assignment");
+    }
+  };
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -740,7 +829,7 @@ export default function CoursesPage() {
                           <CardDescription>{assignment.description}</CardDescription>
                         </div>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="ghost" onClick={() => openEditAssignmentDialog(assignment)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => { setAssignmentToDelete(assignment.id); setDeleteAssignmentDialogOpen(true); }}>
@@ -949,6 +1038,71 @@ export default function CoursesPage() {
                 <Button onClick={handleDeleteAssignment} className="bg-red-600 hover:bg-red-700 text-white" >
                   Delete assignment
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isEditingAssignment} onOpenChange={setIsEditingAssignment}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Assignment</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-6 py-4">
+                <div className="col-span-2">
+                  <Label htmlFor="edit-assignment-title" className="text-base">Title</Label>
+                  <Input id="edit-assignment-title" placeholder="Assignment title" value={newAssignment.title} onChange={e => setNewAssignment({...newAssignment, title: e.target.value})} className="mt-2 h-10 text-base" />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="edit-assignment-description" className="text-base">Description</Label>
+                  <Textarea id="edit-assignment-description" placeholder="Assignment description" value={newAssignment.description} onChange={e => setNewAssignment({...newAssignment, description: e.target.value})} className="mt-2 min-h-[100px] text-base" />
+                </div>
+                <div>
+                  <Label className="text-base">Course</Label>
+                  <div className="mt-2 h-10 flex items-center px-3 rounded-lg border border-gray-300 bg-gray-100 text-base">{courses.find(c => c.id === newAssignment.courseId)?.name || "Unknown Course"}</div>
+                </div>
+                <div>
+                  <Label htmlFor="edit-assignment-deadline" className="text-base">Deadline</Label>
+                  <Input 
+                    id="edit-assignment-deadline" 
+                    type="datetime-local"
+                    value={newAssignment.deadline}
+                    onChange={(e) => setNewAssignment({...newAssignment, deadline: e.target.value})}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-assignment-points" className="text-base">Points</Label>
+                  <Input 
+                    id="edit-assignment-points" 
+                    type="number" 
+                    placeholder="25"
+                    value={newAssignment.totalAchievablePoints}
+                    onChange={(e) => setNewAssignment({...newAssignment, totalAchievablePoints: parseInt(e.target.value) || 0})}
+                    className="mt-2 h-10 text-base"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-assignment-difficulty" className="text-base">Difficulty</Label>
+                  <Select value={newAssignment.difficulty} onValueChange={value => setNewAssignment({...newAssignment, difficulty: value as Difficulty})}>
+                    <SelectTrigger className="w-full rounded-lg border border-gray-300 bg-white h-10 px-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary flex items-center justify-between mt-2">
+                      {newAssignment.difficulty
+                        ? difficultyLabel(newAssignment.difficulty)
+                        : "Select difficulty"}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VERY_EASY">Very Easy</SelectItem>
+                      <SelectItem value="EASY">Easy</SelectItem>
+                      <SelectItem value="NORMAL">Normal</SelectItem>
+                      <SelectItem value="DIFFICULT">Difficult</SelectItem>
+                      <SelectItem value="VERY_DIFFICULT">Very Difficult</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 flex justify-end gap-2 mt-6">
+                  <Button variant="outline" onClick={() => setIsEditingAssignment(false)} className="h-10 px-6">
+                    Cancel
+                  </Button>
+                  <Button className="h-10 px-6 w-auto" onClick={handleUpdateAssignment}>Update Assignment</Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
