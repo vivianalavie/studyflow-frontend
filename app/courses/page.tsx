@@ -99,6 +99,8 @@ export default function CoursesPage() {
   const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(null);
   const [isEditingAssignment, setIsEditingAssignment] = useState(false);
   const [editAssignmentId, setEditAssignmentId] = useState<string | null>(null);
+  const [assignmentCourseFilter, setAssignmentCourseFilter] = useState<string>("ALL_COURSES");
+  const [assignmentDifficultyFilter, setAssignmentDifficultyFilter] = useState<string>("ALL_DIFFICULTIES");
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -509,6 +511,13 @@ export default function CoursesPage() {
     }
   };
 
+  // Filter Dropdowns und Add Assignment Button in der Assignments-Toolbar
+  const filteredAssignments = assignments.filter(a => {
+    const courseMatch = assignmentCourseFilter === "ALL_COURSES" || a.courseId === assignmentCourseFilter;
+    const difficultyMatch = assignmentDifficultyFilter === "ALL_DIFFICULTIES" || a.difficulty === assignmentDifficultyFilter;
+    return courseMatch && difficultyMatch;
+  });
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -733,6 +742,36 @@ export default function CoursesPage() {
             <TabsContent value="assignments" className="space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Assignments</h2>
+                <div className="flex gap-4 items-center">
+                  <Select value={assignmentCourseFilter} onValueChange={setAssignmentCourseFilter}>
+                    <SelectTrigger className="w-48 rounded-lg border border-gray-300 bg-white h-10 px-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      {assignmentCourseFilter !== "ALL_COURSES"
+                        ? courses.find(c => c.id === assignmentCourseFilter)?.name
+                        : "Filter by course"}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL_COURSES">All Courses</SelectItem>
+                      {courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={assignmentDifficultyFilter} onValueChange={setAssignmentDifficultyFilter}>
+                    <SelectTrigger className="w-48 rounded-lg border border-gray-300 bg-white h-10 px-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      {assignmentDifficultyFilter !== "ALL_DIFFICULTIES"
+                        ? difficultyLabel(assignmentDifficultyFilter)
+                        : "Filter by difficulty"}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL_DIFFICULTIES">All Difficulties</SelectItem>
+                      <SelectItem value="VERY_EASY">Very Easy</SelectItem>
+                      <SelectItem value="EASY">Easy</SelectItem>
+                      <SelectItem value="NORMAL">Normal</SelectItem>
+                      <SelectItem value="DIFFICULT">Difficult</SelectItem>
+                      <SelectItem value="VERY_DIFFICULT">Very Difficult</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Dialog open={isAddingAssignment} onOpenChange={setIsAddingAssignment}>
                   <DialogTrigger asChild>
                     <Button>
@@ -820,7 +859,7 @@ export default function CoursesPage() {
               </div>
 
               <div className="space-y-4">
-                {assignments.map((assignment) => (
+                {filteredAssignments.map((assignment) => (
                   <Card key={assignment.id}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
