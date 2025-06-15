@@ -1,4 +1,4 @@
-export type Difficulty = "VERY_EASY" | "EASY" | "MEDIUM" | "HARD" | "VERY_HARD"
+export type Difficulty = "VERY_EASY" | "EASY" | "NORMAL" | "DIFFICULT" | "VERY_DIFFICULT"
 
 export interface Assignment {
   id: string

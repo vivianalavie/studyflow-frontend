@@ -20,9 +20,10 @@ import { Course, getCourses } from "@/app/api/courses"
 import { toast } from "sonner"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Assignment } from "@/types/assignment"
-import { getAssignments } from "@/app/api/assignments"
+import { getAssignments, createAssignment } from "@/app/api/assignments"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { ChevronDown } from "lucide-react"
+import type { Difficulty } from "@/types/assignment"
 
 const courseColors = [
   { value: "blue", label: "Blue", class: "bg-blue-500" },
@@ -79,14 +80,23 @@ export default function CoursesPage() {
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [isEditingCourse, setIsEditingCourse] = useState(false);
   const [editCourseId, setEditCourseId] = useState<string | null>(null);
-  const [newAssignment, setNewAssignment] = useState({
+  const [newAssignment, setNewAssignment] = useState<{
+    title: string;
+    description: string;
+    courseId: string;
+    totalAchievablePoints: number;
+    deadline: string;
+    difficulty: Difficulty;
+  }>({
     title: "",
     description: "",
     courseId: "",
     totalAchievablePoints: 0,
     deadline: "",
-    difficulty: "MEDIUM"
-  })
+    difficulty: "NORMAL"
+  });
+  const [deleteAssignmentDialogOpen, setDeleteAssignmentDialogOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -306,6 +316,107 @@ export default function CoursesPage() {
     } catch (error) {
       console.error('Error updating course:', error);
       toast.error("Error updating course");
+    }
+  };
+
+  const handleDeleteAssignment = async () => {
+    if (!assignmentToDelete) return;
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      if (!token) {
+        toast.error("Not logged in");
+        return;
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/assignments/delete/${assignmentToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Error deleting assignment');
+      }
+      toast.success("Assignment deleted successfully");
+      setDeleteAssignmentDialogOpen(false);
+      setAssignmentToDelete(null);
+      // Aktualisiere die Assignment-Liste
+      const fetchedAssignments = await getAssignments();
+      const assignmentsWithCourseInfo = fetchedAssignments.map(assignment => {
+        const course = courses.find(course => course.id === assignment.courseId);
+        return {
+          ...assignment,
+          courseName: course?.name || "Unknown Course",
+          courseColor: course?.color || "blue",
+          courseTotalPoints: course?.totalPoints || 0
+        };
+      });
+      setAssignments(assignmentsWithCourseInfo);
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      toast.error("Error deleting assignment");
+    }
+  };
+
+  const handleAddAssignment = async () => {
+    try {
+      const token = await window.Clerk?.session?.getToken();
+      if (!token) {
+        toast.error("Not logged in");
+        return;
+      }
+      // Deadline umwandeln: "2025-06-29T13:41" => "2025-06-29T13:41:00+02:00"
+      let deadlineWithOffset = "";
+      if (newAssignment.deadline) {
+        const date = new Date(newAssignment.deadline);
+        // Hole Offset im Format +02:00
+        const tzOffsetMinutes = date.getTimezoneOffset();
+        const absOffset = Math.abs(tzOffsetMinutes);
+        const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+        const offsetMinutes = String(absOffset % 60).padStart(2, '0');
+        const sign = tzOffsetMinutes > 0 ? '-' : '+';
+        const offset = `${sign}${offsetHours}:${offsetMinutes}`;
+        // Baue neuen String
+        const yyyy = date.getFullYear();
+        const MM = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        const ss = String(date.getSeconds()).padStart(2, '0');
+        deadlineWithOffset = `${yyyy}-${MM}-${dd}T${hh}:${min}:${ss}${offset}`;
+      }
+      await createAssignment({
+        title: newAssignment.title,
+        description: newAssignment.description,
+        courseId: newAssignment.courseId,
+        totalAchievablePoints: newAssignment.totalAchievablePoints,
+        deadline: deadlineWithOffset,
+        difficulty: newAssignment.difficulty
+      });
+      toast.success("Assignment created successfully");
+      setIsAddingAssignment(false);
+      setNewAssignment({
+        title: "",
+        description: "",
+        courseId: "",
+        totalAchievablePoints: 0,
+        deadline: "",
+        difficulty: "NORMAL"
+      });
+      // Aktualisiere die Assignment-Liste
+      const fetchedAssignments = await getAssignments();
+      const assignmentsWithCourseInfo = fetchedAssignments.map(assignment => {
+        const course = courses.find(course => course.id === assignment.courseId);
+        return {
+          ...assignment,
+          courseName: course?.name || "Unknown Course",
+          courseColor: course?.color || "blue",
+          courseTotalPoints: course?.totalPoints || 0
+        };
+      });
+      setAssignments(assignmentsWithCourseInfo);
+    } catch (error) {
+      console.error('Error creating assignment:', error);
+      toast.error("Error creating assignment");
     }
   };
 
@@ -593,7 +704,7 @@ export default function CoursesPage() {
                       </div>
                       <div>
                         <Label htmlFor="assignment-difficulty" className="text-base">Difficulty</Label>
-                        <Select value={newAssignment.difficulty} onValueChange={value => setNewAssignment({...newAssignment, difficulty: value})}>
+                        <Select value={newAssignment.difficulty} onValueChange={value => setNewAssignment({...newAssignment, difficulty: value as Difficulty})}>
                           <SelectTrigger className="w-full rounded-lg border border-gray-300 bg-white h-10 px-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary flex items-center justify-between mt-2">
                             {newAssignment.difficulty
                               ? difficultyLabel(newAssignment.difficulty)
@@ -602,9 +713,9 @@ export default function CoursesPage() {
                           <SelectContent>
                             <SelectItem value="VERY_EASY">Very Easy</SelectItem>
                             <SelectItem value="EASY">Easy</SelectItem>
-                            <SelectItem value="MEDIUM">Medium</SelectItem>
-                            <SelectItem value="HARD">Hard</SelectItem>
-                            <SelectItem value="VERY_HARD">Very Hard</SelectItem>
+                            <SelectItem value="NORMAL">Normal</SelectItem>
+                            <SelectItem value="DIFFICULT">Difficult</SelectItem>
+                            <SelectItem value="VERY_DIFFICULT">Very Difficult</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -612,7 +723,7 @@ export default function CoursesPage() {
                         <Button variant="outline" onClick={() => setIsAddingAssignment(false)} className="h-10 px-6">
                           Cancel
                         </Button>
-                        <Button className="h-10 px-6 w-auto" disabled={!newAssignment.courseId}>Add Assignment</Button>
+                        <Button className="h-10 px-6 w-auto" disabled={!newAssignment.courseId} onClick={handleAddAssignment}>Add Assignment</Button>
                       </div>
                     </div>
                   </DialogContent>
@@ -632,7 +743,7 @@ export default function CoursesPage() {
                           <Button size="sm" variant="ghost">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="ghost" onClick={() => { setAssignmentToDelete(assignment.id); setDeleteAssignmentDialogOpen(true); }}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -820,6 +931,27 @@ export default function CoursesPage() {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog open={deleteAssignmentDialogOpen} onOpenChange={setDeleteAssignmentDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Delete Assignment</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center mb-4">
+                <span className="text-red-600 font-bold text-lg mb-2">Warning</span>
+                <span className="text-center text-base text-black leading-relaxed">
+                  If you delete this assignment, it will be permanently removed!
+                </span>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setDeleteAssignmentDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleDeleteAssignment} className="bg-red-600 hover:bg-red-700 text-white" >
+                  Delete assignment
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </SidebarInset>
     </SidebarProvider>
@@ -831,9 +963,9 @@ function difficultyLabel(value: string) {
   switch (value) {
     case "VERY_EASY": return "Very Easy";
     case "EASY": return "Easy";
-    case "MEDIUM": return "Medium";
-    case "HARD": return "Hard";
-    case "VERY_HARD": return "Very Hard";
+    case "NORMAL": return "Normal";
+    case "DIFFICULT": return "Difficult";
+    case "VERY_DIFFICULT": return "Very Difficult";
     default: return value;
   }
 }
