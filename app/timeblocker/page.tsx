@@ -21,13 +21,15 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useState, useEffect } from "react"
 import type { Timeblocker, Occurrence } from "@/types/timeblocker"
-import { getTimeblockers } from "@/app/api/timeblocker"
+import { getTimeblockers, createTimeblocker, updateTimeblocker, deleteTimeblocker } from "@/app/api/timeblocker"
+import { toast } from "sonner"
+import { useAuth } from "@clerk/nextjs"
 
 const occurrenceOptions = [
-  { value: "ONCE", label: "Einmalig" },
-  { value: "DAILY", label: "Täglich" },
-  { value: "WEEKLY", label: "Wöchentlich" },
-  { value: "MONTHLY", label: "Monatlich" },
+  { value: "ONCE", label: "Once" },
+  { value: "DAILY", label: "Daily" },
+  { value: "WEEKLY", label: "Weekly" },
+  { value: "MONTHLY", label: "Monthly" },
 ]
 
 export default function TimeblockerPage() {
@@ -40,18 +42,79 @@ export default function TimeblockerPage() {
     end_date: "",
     occurrence: "ONCE"
   })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [timeblockerToDelete, setTimeblockerToDelete] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTimeblockerId, setEditTimeblockerId] = useState<string | null>(null)
+  const [editTimeblocker, setEditTimeblocker] = useState<Omit<Timeblocker, "id" | "user_id"> | null>(null)
+  const { isLoaded, isSignedIn } = useAuth();
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
     async function fetchTimeblockers() {
       try {
-        const data = await getTimeblockers()
-        setTimeblockers(data)
+        const data = await getTimeblockers();
+        setTimeblockers(data);
       } catch (e) {
         // Fehlerbehandlung optional
       }
     }
-    fetchTimeblockers()
-  }, [])
+    fetchTimeblockers();
+  }, [isLoaded, isSignedIn]);
+
+  async function handleAddTimeblocker() {
+    try {
+      await createTimeblocker(newTimeblocker)
+      toast.success("Timeblocker created successfully")
+      setIsAdding(false)
+      setNewTimeblocker({ name: "", description: "", start_date: "", end_date: "", occurrence: "ONCE" })
+      const data = await getTimeblockers()
+      setTimeblockers(data)
+    } catch (e) {
+      toast.error("Error creating timeblocker")
+    }
+  }
+
+  async function handleDeleteTimeblocker() {
+    if (!timeblockerToDelete) return
+    try {
+      await deleteTimeblocker(timeblockerToDelete)
+      toast.success("Timeblocker deleted successfully")
+      setDeleteDialogOpen(false)
+      setTimeblockerToDelete(null)
+      const data = await getTimeblockers()
+      setTimeblockers(data)
+    } catch (e) {
+      toast.error("Error deleting timeblocker")
+    }
+  }
+
+  function openEditDialog(tb: Timeblocker) {
+    setEditTimeblockerId(tb.id)
+    setEditTimeblocker({
+      name: tb.name,
+      description: tb.description,
+      start_date: tb.start_date,
+      end_date: tb.end_date,
+      occurrence: tb.occurrence
+    })
+    setIsEditing(true)
+  }
+
+  async function handleUpdateTimeblocker() {
+    if (!editTimeblockerId || !editTimeblocker) return
+    try {
+      await updateTimeblocker(editTimeblockerId, editTimeblocker)
+      toast.success("Timeblocker updated successfully")
+      setIsEditing(false)
+      setEditTimeblockerId(null)
+      setEditTimeblocker(null)
+      const data = await getTimeblockers()
+      setTimeblockers(data)
+    } catch (e) {
+      toast.error("Error updating timeblocker")
+    }
+  }
 
   return (
     <SidebarProvider>
@@ -76,17 +139,17 @@ export default function TimeblockerPage() {
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Meine Timeblocker</h2>
+                <h2 className="text-2xl font-bold">My Timeblockers</h2>
                 <Dialog open={isAdding} onOpenChange={setIsAdding}>
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="h-4 w-4 mr-2" />
-                      Hinzufügen
+                      Add
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>Neuen Timeblocker anlegen</DialogTitle>
+                      <DialogTitle>Create new Timeblocker</DialogTitle>
                     </DialogHeader>
                     <div className="grid grid-cols-2 gap-6 py-4">
                       <div className="col-span-2">
@@ -94,7 +157,7 @@ export default function TimeblockerPage() {
                         <Input id="tb-name" value={newTimeblocker.name} onChange={e => setNewTimeblocker({ ...newTimeblocker, name: e.target.value })} className="mt-2" />
                       </div>
                       <div className="col-span-2">
-                        <Label htmlFor="tb-description">Beschreibung</Label>
+                        <Label htmlFor="tb-description">Description</Label>
                         <Textarea id="tb-description" value={newTimeblocker.description} onChange={e => setNewTimeblocker({ ...newTimeblocker, description: e.target.value })} className="mt-2 min-h-[80px]" />
                       </div>
                       <div>
@@ -102,11 +165,11 @@ export default function TimeblockerPage() {
                         <Input id="tb-start" type="datetime-local" value={newTimeblocker.start_date} onChange={e => setNewTimeblocker({ ...newTimeblocker, start_date: e.target.value })} className="mt-2" />
                       </div>
                       <div>
-                        <Label htmlFor="tb-end">Ende</Label>
+                        <Label htmlFor="tb-end">End</Label>
                         <Input id="tb-end" type="datetime-local" value={newTimeblocker.end_date} onChange={e => setNewTimeblocker({ ...newTimeblocker, end_date: e.target.value })} className="mt-2" />
                       </div>
                       <div>
-                        <Label htmlFor="tb-occurrence">Wiederholung</Label>
+                        <Label htmlFor="tb-occurrence">Occurrence</Label>
                         <Select value={newTimeblocker.occurrence} onValueChange={val => setNewTimeblocker({ ...newTimeblocker, occurrence: val as Occurrence })}>
                           <SelectTrigger className="mt-2">
                             <SelectValue />
@@ -120,14 +183,14 @@ export default function TimeblockerPage() {
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
-                      <Button variant="outline" onClick={() => setIsAdding(false)}>Abbrechen</Button>
-                      <Button onClick={() => {/* TODO: Speichern */}}>Speichern</Button>
+                      <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
+                      <Button onClick={handleAddTimeblocker}>Save</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
               </div>
               <div className="space-y-4">
-                {timeblockers.length === 0 && <div className="text-muted-foreground">Noch keine Timeblocker angelegt.</div>}
+                {timeblockers.length === 0 && <div className="text-muted-foreground">No timeblockers yet.</div>}
                 {timeblockers.map(tb => (
                   <Card key={tb.id}>
                     <CardHeader>
@@ -137,8 +200,8 @@ export default function TimeblockerPage() {
                           <div className="text-sm text-muted-foreground">{tb.description}</div>
                         </div>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost"><Edit className="h-4 w-4" /></Button>
-                          <Button size="sm" variant="ghost"><Trash2 className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => openEditDialog(tb)}><Edit className="h-4 w-4" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setTimeblockerToDelete(tb.id); setDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </div>
                     </CardHeader>
@@ -159,6 +222,69 @@ export default function TimeblockerPage() {
           </div>
         </div>
       </SidebarInset>
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Timeblocker</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center mb-4">
+            <span className="text-red-600 font-bold text-lg mb-2">Warning</span>
+            <span className="text-center text-base text-black leading-relaxed">
+              If you delete this timeblocker, it will be permanently removed!
+            </span>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleDeleteTimeblocker} className="bg-red-600 hover:bg-red-700 text-white" >
+              Delete timeblocker
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Timeblocker</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-6 py-4">
+            <div className="col-span-2">
+              <Label htmlFor="edit-tb-name">Name</Label>
+              <Input id="edit-tb-name" value={editTimeblocker?.name || ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, name: e.target.value } : null)} className="mt-2" />
+            </div>
+            <div className="col-span-2">
+              <Label htmlFor="edit-tb-description">Description</Label>
+              <Textarea id="edit-tb-description" value={editTimeblocker?.description || ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, description: e.target.value } : null)} className="mt-2 min-h-[80px]" />
+            </div>
+            <div>
+              <Label htmlFor="edit-tb-start">Start</Label>
+              <Input id="edit-tb-start" type="datetime-local" value={editTimeblocker?.start_date || ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, start_date: e.target.value } : null)} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="edit-tb-end">End</Label>
+              <Input id="edit-tb-end" type="datetime-local" value={editTimeblocker?.end_date || ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, end_date: e.target.value } : null)} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="edit-tb-occurrence">Occurrence</Label>
+              <Select value={editTimeblocker?.occurrence || "ONCE"} onValueChange={val => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, occurrence: val as Occurrence } : null)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {occurrenceOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+            <Button onClick={handleUpdateTimeblocker}>Update</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 } 
