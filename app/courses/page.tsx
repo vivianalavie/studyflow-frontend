@@ -148,17 +148,17 @@ export default function CoursesPage() {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "VERY_EASY":
-        return "bg-green-100 text-green-800"
+        return "bg-green-500 text-white border-green-500";
       case "EASY":
-        return "bg-green-100 text-green-800"
-      case "MEDIUM":
-        return "bg-yellow-100 text-yellow-800"
-      case "HARD":
-        return "bg-orange-100 text-orange-800"
-      case "VERY_HARD":
-        return "bg-red-100 text-red-800"
+        return "bg-green-100 text-green-800 border-green-200";
+      case "NORMAL":
+        return "bg-blue-100 text-blue-800 border-blue-300";
+      case "DIFFICULT":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "VERY_DIFFICULT":
+        return "bg-red-600 text-white border-red-600";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800 border-gray-300";
     }
   }
 
@@ -886,7 +886,7 @@ export default function CoursesPage() {
                           >
                             {assignment.courseName}
                           </Badge>
-                          <Badge className={getDifficultyColor(assignment.difficulty)}>{assignment.difficulty}</Badge>
+                          <Badge className={getDifficultyColor(assignment.difficulty)}>{difficultyLabel(assignment.difficulty)}</Badge>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
