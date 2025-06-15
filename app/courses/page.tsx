@@ -21,6 +21,8 @@ import { toast } from "sonner"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Assignment } from "@/types/assignment"
 import { getAssignments } from "@/app/api/assignments"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { ChevronDown } from "lucide-react"
 
 const courseColors = [
   { value: "blue", label: "Blue", class: "bg-blue-500" },
@@ -77,6 +79,14 @@ export default function CoursesPage() {
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [isEditingCourse, setIsEditingCourse] = useState(false);
   const [editCourseId, setEditCourseId] = useState<string | null>(null);
+  const [newAssignment, setNewAssignment] = useState({
+    title: "",
+    description: "",
+    courseId: "",
+    totalAchievablePoints: 0,
+    deadline: "",
+    difficulty: "MEDIUM"
+  })
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -530,39 +540,80 @@ export default function CoursesPage() {
                       Add Assignment
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Add New Assignment</DialogTitle>
+                      <DialogTitle className="text-2xl">Add New Assignment</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="assignment-title">Title</Label>
-                        <Input id="assignment-title" placeholder="Assignment title" />
+                    <div className="grid grid-cols-2 gap-6 py-4">
+                      <div className="col-span-2">
+                        <Label htmlFor="assignment-title" className="text-base">Title</Label>
+                        <Input id="assignment-title" placeholder="Assignment title" value={newAssignment.title} onChange={e => setNewAssignment({...newAssignment, title: e.target.value})} className="mt-2 h-10 text-base" />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="assignment-description" className="text-base">Description</Label>
+                        <Textarea id="assignment-description" placeholder="Assignment description" value={newAssignment.description} onChange={e => setNewAssignment({...newAssignment, description: e.target.value})} className="mt-2 min-h-[100px] text-base" />
                       </div>
                       <div>
-                        <Label htmlFor="assignment-description">Description</Label>
-                        <Textarea id="assignment-description" placeholder="Assignment description" />
+                        <Label htmlFor="assignment-course" className="text-base">Course</Label>
+                        <Select value={newAssignment.courseId} onValueChange={value => setNewAssignment({...newAssignment, courseId: value})}>
+                          <SelectTrigger className="w-full rounded-lg border border-gray-300 bg-white h-10 px-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary flex items-center justify-between mt-2">
+                            {newAssignment.courseId
+                              ? courses.find(c => c.id === newAssignment.courseId)?.name
+                              : "Select a course"}
+                          </SelectTrigger>
+                          <SelectContent>
+                            {courses.map((course) => (
+                              <SelectItem key={course.id} value={course.id}>
+                                {course.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
-                        <Label htmlFor="assignment-course">Course</Label>
-                        <select className="w-full p-2 border rounded">
-                          <option value="">Select a course</option>
-                          {courses.map((course) => (
-                            <option key={course.id} value={course.id}>
-                              {course.name}
-                            </option>
-                          ))}
-                        </select>
+                        <Label htmlFor="assignment-deadline" className="text-base">Deadline</Label>
+                        <Input 
+                          id="assignment-deadline" 
+                          type="datetime-local"
+                          value={newAssignment.deadline}
+                          onChange={(e) => setNewAssignment({...newAssignment, deadline: e.target.value})}
+                          className="mt-2 h-10 text-base"
+                        />
                       </div>
                       <div>
-                        <Label htmlFor="assignment-deadline">Deadline</Label>
-                        <Input id="assignment-deadline" type="datetime-local" />
+                        <Label htmlFor="assignment-points" className="text-base">Points</Label>
+                        <Input 
+                          id="assignment-points" 
+                          type="number" 
+                          placeholder="25"
+                          value={newAssignment.totalAchievablePoints}
+                          onChange={(e) => setNewAssignment({...newAssignment, totalAchievablePoints: parseInt(e.target.value) || 0})}
+                          className="mt-2 h-10 text-base"
+                        />
                       </div>
                       <div>
-                        <Label htmlFor="assignment-points">Points</Label>
-                        <Input id="assignment-points" type="number" placeholder="25" />
+                        <Label htmlFor="assignment-difficulty" className="text-base">Difficulty</Label>
+                        <Select value={newAssignment.difficulty} onValueChange={value => setNewAssignment({...newAssignment, difficulty: value})}>
+                          <SelectTrigger className="w-full rounded-lg border border-gray-300 bg-white h-10 px-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary flex items-center justify-between mt-2">
+                            {newAssignment.difficulty
+                              ? difficultyLabel(newAssignment.difficulty)
+                              : "Select difficulty"}
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="VERY_EASY">Very Easy</SelectItem>
+                            <SelectItem value="EASY">Easy</SelectItem>
+                            <SelectItem value="MEDIUM">Medium</SelectItem>
+                            <SelectItem value="HARD">Hard</SelectItem>
+                            <SelectItem value="VERY_HARD">Very Hard</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Button className="w-full">Add Assignment</Button>
+                      <div className="col-span-2 flex justify-end gap-2 mt-6">
+                        <Button variant="outline" onClick={() => setIsAddingAssignment(false)} className="h-10 px-6">
+                          Cancel
+                        </Button>
+                        <Button className="h-10 px-6 w-auto" disabled={!newAssignment.courseId}>Add Assignment</Button>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -773,4 +824,16 @@ export default function CoursesPage() {
       </SidebarInset>
     </SidebarProvider>
   )
+}
+
+// Hilfsfunktion für Difficulty-Label
+function difficultyLabel(value: string) {
+  switch (value) {
+    case "VERY_EASY": return "Very Easy";
+    case "EASY": return "Easy";
+    case "MEDIUM": return "Medium";
+    case "HARD": return "Hard";
+    case "VERY_HARD": return "Very Hard";
+    default: return value;
+  }
 }

@@ -17,4 +17,24 @@ export async function getAssignments(): Promise<Assignment[]> {
   }
 
   return response.json()
+}
+
+export async function createAssignment(assignment: Omit<Assignment, 'id' | 'courseName' | 'courseColor' | 'courseTotalPoints'>): Promise<void> {
+  const token = await window.Clerk?.session?.getToken()
+  if (!token) {
+    throw new Error("Not logged in")
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/assignments/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(assignment)
+  })
+
+  if (!response.ok) {
+    throw new Error('Error creating assignment')
+  }
 } 
