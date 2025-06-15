@@ -1,7 +1,7 @@
 "use client"
 
 import type * as React from "react"
-import { Calendar, Home, BookOpen, Settings, Clock, CalendarDays, Moon, Sun } from "lucide-react"
+import { Calendar, Home, BookOpen, Settings, Clock, CalendarDays, Moon, Sun, FileText } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -41,6 +41,11 @@ const menuItems = [
     title: "Courses & Assignments",
     url: "/courses",
     icon: BookOpen,
+  },
+  {
+    title: "Personal Timeblocker",
+    url: "/timeblocker",
+    icon: FileText,
   },
   {
     title: "Pomodoro Timer",
