@@ -54,7 +54,7 @@ const mockEvents: CalendarEvent[] = [
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, "0")}:00`)
 
-export function WeeklyCalendar() {
+export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean }) {
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>(mockEvents)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
@@ -73,6 +73,7 @@ export function WeeklyCalendar() {
   }
 
   const weekDates = getWeekDates(currentWeek)
+  const daysToShow = onlyTwoDays ? [weekDates[new Date().getDay()], weekDates[(new Date().getDay() + 1) % 7]] : weekDates;
 
   const getEventColor = (type: string) => {
     switch (type) {
@@ -112,30 +113,30 @@ export function WeeklyCalendar() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-8 gap-2 h-96 overflow-auto">
+        <div className={`grid ${onlyTwoDays ? 'grid-cols-3' : 'grid-cols-8'} gap-2 flex-1`} style={{ height: '100%' }}>
           {/* Time column */}
           <div className="space-y-2">
             <div className="h-8"></div>
-            {timeSlots.slice(6, 24).map((time) => (
-              <div key={time} className="h-8 text-xs text-muted-foreground flex items-center">
+            {timeSlots.slice(6, 24).map((time, idx) => (
+              <div key={time} className={`h-8 text-xs text-muted-foreground flex items-center border-t border-gray-100 ${idx === timeSlots.slice(6, 24).length - 1 ? 'border-b' : ''}`}>
                 {time}
               </div>
             ))}
           </div>
 
           {/* Day columns */}
-          {days.map((day, dayIndex) => (
-            <div key={day} className="space-y-2">
+          {daysToShow.map((date, dayIndex) => (
+            <div key={date.toISOString()} className="space-y-2">
               <div className="h-8 text-center">
-                <div className="text-sm font-medium">{day}</div>
-                <div className="text-xs text-muted-foreground">{weekDates[dayIndex].getDate()}</div>
+                <div className="text-sm font-medium">{days[date.getDay()]}</div>
+                <div className="text-xs text-muted-foreground">{date.getDate()}</div>
               </div>
 
               <div className="relative space-y-1">
                 {timeSlots.slice(6, 24).map((time, timeIndex) => (
                   <div key={time} className="h-8 border-t border-gray-100 relative">
                     {events
-                      .filter((event) => event.day === dayIndex && event.startTime.startsWith(time.split(":")[0]))
+                      .filter((event) => event.day === date.getDay() && event.startTime.startsWith(time.split(":")[0]))
                       .map((event) => (
                         <Dialog key={event.id}>
                           <DialogTrigger asChild>
