@@ -32,21 +32,28 @@ const occurrenceOptions = [
   { value: "MONTHLY", label: "Monthly" },
 ]
 
+// Hilfsfunktion für LocalDateTime-String (keine Zeitzone, keine Sekunden nötig)
+function toLocalDateTimeString(input: string | undefined): string {
+  if (!input) return "";
+  // Entferne Zeitzoneninformationen und Sekunden
+  return input.split('.')[0].replace('Z', '');
+}
+
 export default function TimeblockerPage() {
   const [timeblockers, setTimeblockers] = useState<Timeblocker[]>([])
   const [isAdding, setIsAdding] = useState(false)
-  const [newTimeblocker, setNewTimeblocker] = useState<Omit<Timeblocker, "id" | "user_id">>({
+  const [newTimeblocker, setNewTimeblocker] = useState<Omit<Timeblocker, 'id' | 'userId'>>({
     name: "",
     description: "",
-    start_date: "",
-    end_date: "",
+    startDate: "",
+    endDate: "",
     occurrence: "ONCE"
   })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [timeblockerToDelete, setTimeblockerToDelete] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editTimeblockerId, setEditTimeblockerId] = useState<string | null>(null)
-  const [editTimeblocker, setEditTimeblocker] = useState<Omit<Timeblocker, "id" | "user_id"> | null>(null)
+  const [editTimeblocker, setEditTimeblocker] = useState<Omit<Timeblocker, 'id' | 'userId'> | null>(null)
   const { isLoaded, isSignedIn } = useAuth();
 
   useEffect(() => {
@@ -64,14 +71,18 @@ export default function TimeblockerPage() {
 
   async function handleAddTimeblocker() {
     try {
-      await createTimeblocker(newTimeblocker)
-      toast.success("Timeblocker created successfully")
-      setIsAdding(false)
-      setNewTimeblocker({ name: "", description: "", start_date: "", end_date: "", occurrence: "ONCE" })
-      const data = await getTimeblockers()
-      setTimeblockers(data)
+      await createTimeblocker({
+        ...newTimeblocker,
+        startDate: toLocalDateTimeString(newTimeblocker.startDate),
+        endDate: toLocalDateTimeString(newTimeblocker.endDate),
+      });
+      toast.success("Timeblocker created successfully");
+      setIsAdding(false);
+      setNewTimeblocker({ name: "", description: "", startDate: "", endDate: "", occurrence: "ONCE" });
+      const data = await getTimeblockers();
+      setTimeblockers(data);
     } catch (e) {
-      toast.error("Error creating timeblocker")
+      toast.error("Error creating timeblocker");
     }
   }
 
@@ -94,25 +105,29 @@ export default function TimeblockerPage() {
     setEditTimeblocker({
       name: tb.name,
       description: tb.description,
-      start_date: tb.start_date,
-      end_date: tb.end_date,
+      startDate: tb.startDate || "",
+      endDate: tb.endDate || "",
       occurrence: tb.occurrence
     })
     setIsEditing(true)
   }
 
   async function handleUpdateTimeblocker() {
-    if (!editTimeblockerId || !editTimeblocker) return
+    if (!editTimeblockerId || !editTimeblocker) return;
     try {
-      await updateTimeblocker(editTimeblockerId, editTimeblocker)
-      toast.success("Timeblocker updated successfully")
-      setIsEditing(false)
-      setEditTimeblockerId(null)
-      setEditTimeblocker(null)
-      const data = await getTimeblockers()
-      setTimeblockers(data)
+      await updateTimeblocker(editTimeblockerId, {
+        ...editTimeblocker,
+        startDate: toLocalDateTimeString(editTimeblocker.startDate),
+        endDate: toLocalDateTimeString(editTimeblocker.endDate),
+      });
+      toast.success("Timeblocker updated successfully");
+      setIsEditing(false);
+      setEditTimeblockerId(null);
+      setEditTimeblocker(null);
+      const data = await getTimeblockers();
+      setTimeblockers(data);
     } catch (e) {
-      toast.error("Error updating timeblocker")
+      toast.error("Error updating timeblocker");
     }
   }
 
@@ -162,11 +177,11 @@ export default function TimeblockerPage() {
                       </div>
                       <div>
                         <Label htmlFor="tb-start">Start</Label>
-                        <Input id="tb-start" type="datetime-local" value={newTimeblocker.start_date} onChange={e => setNewTimeblocker({ ...newTimeblocker, start_date: e.target.value })} className="mt-2" />
+                        <Input id="tb-start" type="datetime-local" value={(newTimeblocker.startDate ?? "") + ""} onChange={e => setNewTimeblocker({ ...newTimeblocker, startDate: e.target.value ?? "" })} className="mt-2" />
                       </div>
                       <div>
                         <Label htmlFor="tb-end">End</Label>
-                        <Input id="tb-end" type="datetime-local" value={newTimeblocker.end_date} onChange={e => setNewTimeblocker({ ...newTimeblocker, end_date: e.target.value })} className="mt-2" />
+                        <Input id="tb-end" type="datetime-local" value={(newTimeblocker.endDate ?? "") + ""} onChange={e => setNewTimeblocker({ ...newTimeblocker, endDate: e.target.value ?? "" })} className="mt-2" />
                       </div>
                       <div>
                         <Label htmlFor="tb-occurrence">Occurrence</Label>
@@ -208,7 +223,19 @@ export default function TimeblockerPage() {
                     <CardContent>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div>
-                          {new Date(tb.start_date).toLocaleString()} – {new Date(tb.end_date).toLocaleString()}
+                          {tb.startDate ? new Date(tb.startDate).toLocaleString('de-DE', { 
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : "-"} – {tb.endDate ? new Date(tb.endDate).toLocaleString('de-DE', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : "-"}
                         </div>
                         <div>
                           {occurrenceOptions.find(o => o.value === tb.occurrence)?.label}
@@ -259,11 +286,11 @@ export default function TimeblockerPage() {
             </div>
             <div>
               <Label htmlFor="edit-tb-start">Start</Label>
-              <Input id="edit-tb-start" type="datetime-local" value={editTimeblocker?.start_date || ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, start_date: e.target.value } : null)} className="mt-2" />
+              <Input id="edit-tb-start" type="datetime-local" value={(editTimeblocker?.startDate ?? "") + ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, startDate: e.target.value ?? "" } : null)} className="mt-2" />
             </div>
             <div>
               <Label htmlFor="edit-tb-end">End</Label>
-              <Input id="edit-tb-end" type="datetime-local" value={editTimeblocker?.end_date || ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, end_date: e.target.value } : null)} className="mt-2" />
+              <Input id="edit-tb-end" type="datetime-local" value={(editTimeblocker?.endDate ?? "") + ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, endDate: e.target.value ?? "" } : null)} className="mt-2" />
             </div>
             <div>
               <Label htmlFor="edit-tb-occurrence">Occurrence</Label>

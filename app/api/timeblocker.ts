@@ -19,7 +19,7 @@ export async function getTimeblockers(): Promise<Timeblocker[]> {
   return response.json()
 }
 
-export async function createTimeblocker(timeblocker: Omit<Timeblocker, 'id' | 'user_id'>): Promise<void> {
+export async function createTimeblocker(timeblocker: Omit<Timeblocker, 'id' | 'userId'>): Promise<void> {
   const token = await window.Clerk?.session?.getToken()
   if (!token) {
     throw new Error("Not logged in")
@@ -39,7 +39,7 @@ export async function createTimeblocker(timeblocker: Omit<Timeblocker, 'id' | 'u
   }
 }
 
-export async function updateTimeblocker(id: string, timeblocker: Omit<Timeblocker, 'id' | 'user_id'>): Promise<void> {
+export async function updateTimeblocker(id: string, timeblocker: Omit<Timeblocker, 'id' | 'userId'>): Promise<void> {
   const token = await window.Clerk?.session?.getToken()
   if (!token) {
     throw new Error("Not logged in")

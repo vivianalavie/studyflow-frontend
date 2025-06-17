@@ -4,8 +4,8 @@ export interface Timeblocker {
   id: string
   name: string
   description: string
-  start_date: string // ISO-String
-  end_date: string   // ISO-String
-  user_id: string
+  startDate: string // ISO-String
+  endDate: string   // ISO-String
+  userId: string
   occurrence: Occurrence
 } 
