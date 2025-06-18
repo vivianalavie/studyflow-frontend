@@ -1,69 +1,62 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import axios from "axios"
 
 interface CalendarEvent {
-  id: string
-  title: string
-  type: "study" | "deadline" | "blocker"
-  startTime: string
-  endTime: string
-  day: number
-  description?: string
-  course?: string
+  name: string
+  description: string
+  startTime: string // ISO-String
+  endTime: string   // ISO-String
+  type: "AUTOMATIC" | "PERSONAL"
+  color: string
 }
-
-const mockEvents: CalendarEvent[] = [
-  {
-    id: "1",
-    title: "Math Study Session",
-    type: "study",
-    startTime: "09:00",
-    endTime: "11:00",
-    day: 1,
-    course: "Mathematics",
-    description: "Algebra and calculus review",
-  },
-  {
-    id: "2",
-    title: "Physics Assignment Due",
-    type: "deadline",
-    startTime: "23:59",
-    endTime: "23:59",
-    day: 3,
-    course: "Physics",
-    description: "Quantum mechanics problem set",
-  },
-  {
-    id: "3",
-    title: "Gym Session",
-    type: "blocker",
-    startTime: "18:00",
-    endTime: "19:30",
-    day: 2,
-    description: "Personal workout time",
-  },
-]
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, "0")}:00`)
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+async function getCalendarEvents(): Promise<CalendarEvent[]> {
+  const token = await window.Clerk?.session?.getToken();
+  if (!token) {
+    throw new Error("Not logged in");
+  }
+  const response = await fetch(`${API_BASE_URL}/api/calendar/events`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Error fetching calendar events');
+  }
+  return response.json();
+}
+
 export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean }) {
   const [currentWeek, setCurrentWeek] = useState(new Date())
-  const [events, setEvents] = useState<CalendarEvent[]>(mockEvents)
+  const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+
+  useEffect(() => {
+    getCalendarEvents()
+      .then(data => {
+        setEvents(data)
+        console.log("Geladene Events:", data)
+      })
+      .catch(() => setEvents([]))
+  }, [])
 
   const getWeekDates = (date: Date) => {
     const week = []
     const startDate = new Date(date)
     startDate.setDate(date.getDate() - date.getDay())
-
     for (let i = 0; i < 7; i++) {
       const day = new Date(startDate)
       day.setDate(startDate.getDate() + i)
@@ -75,23 +68,32 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
   const weekDates = getWeekDates(currentWeek)
   const daysToShow = onlyTwoDays ? [weekDates[new Date().getDay()], weekDates[(new Date().getDay() + 1) % 7]] : weekDates;
 
-  const getEventColor = (type: string) => {
-    switch (type) {
-      case "study":
-        return "bg-primary text-primary-foreground"
-      case "deadline":
-        return "bg-red-500 text-white"
-      case "blocker":
-        return "bg-gray-500 text-white"
-      default:
-        return "bg-gray-200"
-    }
+  const getEventColor = (color: string) => {
+    return color ? color : "bg-gray-200"
   }
 
   const navigateWeek = (direction: "prev" | "next") => {
     const newDate = new Date(currentWeek)
     newDate.setDate(currentWeek.getDate() + (direction === "next" ? 7 : -7))
     setCurrentWeek(newDate)
+  }
+
+  // Hilfsfunktion: Events für einen Tag und Stunde filtern (Slot-Logik)
+  const getEventsForDayAndHour = (date: Date, hour: string) => {
+    const slotStart = new Date(date)
+    slotStart.setHours(parseInt(hour), 0, 0, 0)
+    const slotEnd = new Date(slotStart)
+    slotEnd.setHours(slotStart.getHours() + 1)
+    return events.filter(event => {
+      const eventStart = new Date(event.startTime)
+      const eventEnd = new Date(event.endTime)
+      // Event beginnt vor Ende des Slots und endet nach Start des Slots
+      return (
+        eventStart < slotEnd && eventEnd > slotStart &&
+        eventStart.getFullYear() === date.getFullYear() &&
+        eventStart.getMonth() === date.getMonth()
+      )
+    })
   }
 
   return (
@@ -125,7 +127,7 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
           </div>
 
           {/* Day columns */}
-          {daysToShow.map((date, dayIndex) => (
+          {daysToShow.map((date) => (
             <div key={date.toISOString()} className="space-y-2">
               <div className="h-8 text-center">
                 <div className="text-sm font-medium">{days[date.getDay()]}</div>
@@ -133,56 +135,49 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
               </div>
 
               <div className="relative space-y-1">
-                {timeSlots.slice(6, 24).map((time, timeIndex) => (
+                {timeSlots.slice(6, 24).map((time) => (
                   <div key={time} className="h-8 border-t border-gray-100 relative">
-                    {events
-                      .filter((event) => event.day === date.getDay() && event.startTime.startsWith(time.split(":")[0]))
-                      .map((event) => (
-                        <Dialog key={event.id}>
-                          <DialogTrigger asChild>
-                            <div
-                              className={`absolute inset-x-0 top-0 h-full rounded text-xs p-1 cursor-pointer hover:opacity-80 ${getEventColor(event.type)}`}
-                              onClick={() => setSelectedEvent(event)}
-                            >
-                              <div className="truncate font-medium">{event.title}</div>
-                              <div className="truncate opacity-75">
-                                {event.startTime}-{event.endTime}
-                              </div>
+                    {getEventsForDayAndHour(date, time.split(":")[0]).map((event, idx) => (
+                      <Dialog key={event.name + event.startTime + idx}>
+                        <DialogTrigger asChild>
+                          <div
+                            className={`absolute inset-x-0 top-0 h-full rounded text-xs p-1 cursor-pointer hover:opacity-80`}
+                            style={{ background: event.color, color: '#fff' }}
+                            onClick={() => setSelectedEvent(event)}
+                          >
+                            <div className="truncate font-medium">{event.name}</div>
+                            <div className="truncate opacity-75">
+                              {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              -
+                              {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>{event.title}</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <Label>Type</Label>
-                                <Badge className={getEventColor(event.type)}>
-                                  {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
-                                </Badge>
-                              </div>
-                              <div>
-                                <Label>Time</Label>
-                                <p>
-                                  {event.startTime} - {event.endTime}
-                                </p>
-                              </div>
-                              {event.course && (
-                                <div>
-                                  <Label>Course</Label>
-                                  <p>{event.course}</p>
-                                </div>
-                              )}
-                              {event.description && (
-                                <div>
-                                  <Label>Description</Label>
-                                  <p>{event.description}</p>
-                                </div>
-                              )}
+                          </div>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>{event.name}</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label>Typ</Label>
+                              <Badge style={{ background: event.color, color: '#fff' }}>{event.type}</Badge>
                             </div>
-                          </DialogContent>
-                        </Dialog>
-                      ))}
+                            <div>
+                              <Label>Zeit</Label>
+                              <p>
+                                {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            {event.description && (
+                              <div>
+                                <Label>Beschreibung</Label>
+                                <p>{event.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ))}
                   </div>
                 ))}
               </div>
