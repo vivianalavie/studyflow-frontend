@@ -264,10 +264,15 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
                       onClick={() => setSelectedEvent(event)}
                     >
                       <div className="truncate font-medium">{event.name}</div>
-                      <div className="truncate opacity-75">
-                        {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        -
-                        {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className="truncate opacity-75" style={{whiteSpace: 'pre-line'}}>
+                        {/* Start- und Enddatum (ohne Jahr) jeweils in eigener Zeile, 'till' am Ende der ersten Zeile */}
+                        {(() => {
+                          const start = new Date(event.startTime)
+                          const end = new Date(event.endTime)
+                          const startStr = `${start.getDate().toString().padStart(2, '0')}.${(start.getMonth()+1).toString().padStart(2, '0')}. ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} until`
+                          const endStr = `${end.getDate().toString().padStart(2, '0')}.${(end.getMonth()+1).toString().padStart(2, '0')}. ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                          return `${startStr}\n${endStr}`
+                        })()}
                       </div>
                     </div>
                   </DialogTrigger>
