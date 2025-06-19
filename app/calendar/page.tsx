@@ -25,7 +25,7 @@ export default function CalendarPage() {
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
           <div className="grid auto-rows-min gap-4">
-            <div className="aspect-[4/3] rounded-xl bg-muted/50">
+            <div className="h-full flex-1 rounded-xl bg-muted/50">
               <WeeklyCalendar />
             </div>
           </div>
