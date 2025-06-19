@@ -193,82 +193,162 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
           ))}
 
           {/* Events */}
-          {daysToShow.map((date, colIdx) => (
-            getEventsForDay(date).map((event, idx) => {
-              const eventStart = new Date(event.startTime)
-              const eventEnd = new Date(event.endTime)
-              const startHour = eventStart.getHours()
-              const endHour = eventEnd.getHours()
-              const startMin = eventStart.getMinutes()
-              const endMin = eventEnd.getMinutes()
-              // Berechne die Zeile und die Höhe im Grid
-              let gridRowStart = 2 + startHour + startMin / 60
-              let gridRowEnd = 2 + endHour + endMin / 60
-              if (gridRowEnd === gridRowStart) {
-                gridRowEnd = gridRowStart + 0.25 // 15 Minuten anzeigen
-              }
-              // Begrenzung auf Grid-Bereich (2 bis 26)
-              gridRowStart = Math.max(2, Math.min(gridRowStart, 26));
-              gridRowEnd = Math.max(gridRowStart + 0.01, Math.min(gridRowEnd, 26));
-              return (
-                <Dialog key={event.name + event.startTime + idx}>
-                  <DialogTrigger asChild>
-                    <div
-                      style={{
-                        gridColumn: colIdx + 2,
-                        gridRow: `${gridRowStart} / ${gridRowEnd}`,
-                        background: event.color,
-                        color: '#fff',
-                        borderRadius: '0.5rem',
-                        padding: '0.25rem',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        opacity: 0.95,
-                        zIndex: 2,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        minHeight: '2px',
-                        position: 'relative',
-                      }}
-                      onClick={() => setSelectedEvent(event)}
-                    >
-                      <div className="truncate font-medium">{event.name}</div>
-                      <div className="truncate opacity-75">
-                        {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        -
-                        {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{event.name}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Typ</Label>
-                        <Badge style={{ background: event.color, color: '#fff' }}>{event.type}</Badge>
-                      </div>
-                      <div>
-                        <Label>Zeit</Label>
-                        <p>
-                          {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      {event.description && (
-                        <div>
-                          <Label>Beschreibung</Label>
-                          <p>{event.description}</p>
+          {events.map((event, idx) => {
+            const eventStart = new Date(event.startTime)
+            const eventEnd = new Date(event.endTime)
+            // Finde die Spalte (Tag) für Start und Ende
+            const startDayIdx = daysToShow.findIndex(d => d.toDateString() === eventStart.toDateString())
+            const endDayIdx = daysToShow.findIndex(d => d.toDateString() === eventEnd.toDateString())
+            // Wenn das Event nicht in dieser Woche ist, nicht anzeigen
+            if (startDayIdx === -1 && endDayIdx === -1) return null
+            // Begrenze auf sichtbare Woche
+            const colStart = Math.max(0, startDayIdx === -1 ? 0 : startDayIdx)
+            const colEnd = Math.min(daysToShow.length - 1, endDayIdx === -1 ? daysToShow.length - 1 : endDayIdx)
+            // Zeilenberechnung für Start- und Endtag
+            let gridRowStart = 2
+            let gridRowEnd = 26
+            if (colStart === colEnd) {
+              // Event innerhalb eines Tages
+              gridRowStart = 2 + eventStart.getHours() + eventStart.getMinutes() / 60
+              gridRowEnd = 2 + eventEnd.getHours() + eventEnd.getMinutes() / 60
+              if (gridRowEnd === gridRowStart) gridRowEnd = gridRowStart + 0.25
+              gridRowStart = Math.max(2, Math.min(gridRowStart, 26))
+              gridRowEnd = Math.max(gridRowStart + 0.01, Math.min(gridRowEnd, 26))
+            } else {
+              // Mehrtägiges Event: Starttag von Startzeit bis Tagesende, Folgetage von 00:00 bis 24:00, Endtag bis Endzeit
+              // Wir rendern für jeden Tag einen Block
+              const blocks = []
+              for (let day = colStart; day <= colEnd; day++) {
+                let rowStart = 2
+                let rowEnd = 26
+                if (day === colStart) {
+                  rowStart = 2 + eventStart.getHours() + eventStart.getMinutes() / 60
+                }
+                if (day === colEnd) {
+                  rowEnd = 2 + eventEnd.getHours() + eventEnd.getMinutes() / 60
+                  if (rowEnd === rowStart) rowEnd = rowStart + 0.25
+                }
+                rowStart = Math.max(2, Math.min(rowStart, 26))
+                rowEnd = Math.max(rowStart + 0.01, Math.min(rowEnd, 26))
+                blocks.push(
+                  <Dialog key={event.name + event.startTime + idx + '-' + day}>
+                    <DialogTrigger asChild>
+                      <div
+                        style={{
+                          gridColumn: day + 2,
+                          gridRow: `${rowStart} / ${rowEnd}`,
+                          background: event.color,
+                          color: '#fff',
+                          borderRadius: '0.5rem',
+                          padding: '0.25rem',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          opacity: 0.95,
+                          zIndex: 2,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          minHeight: '2px',
+                          position: 'relative',
+                        }}
+                        onClick={() => setSelectedEvent(event)}
+                      >
+                        <div className="truncate font-medium">{event.name}</div>
+                        <div className="truncate opacity-75">
+                          {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          -
+                          {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
-                      )}
+                      </div>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>{event.name}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Typ</Label>
+                          <Badge style={{ background: event.color, color: '#fff' }}>{event.type}</Badge>
+                        </div>
+                        <div>
+                          <Label>Zeit</Label>
+                          <p>
+                            {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        {event.description && (
+                          <div>
+                            <Label>Beschreibung</Label>
+                            <p>{event.description}</p>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )
+              }
+              return blocks
+            }
+            // Einzelner Block für eintägiges Event
+            return (
+              <Dialog key={event.name + event.startTime + idx}>
+                <DialogTrigger asChild>
+                  <div
+                    style={{
+                      gridColumn: colStart + 2,
+                      gridRow: `${gridRowStart} / ${gridRowEnd}`,
+                      background: event.color,
+                      color: '#fff',
+                      borderRadius: '0.5rem',
+                      padding: '0.25rem',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      opacity: 0.95,
+                      zIndex: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      minHeight: '2px',
+                      position: 'relative',
+                    }}
+                    onClick={() => setSelectedEvent(event)}
+                  >
+                    <div className="truncate font-medium">{event.name}</div>
+                    <div className="truncate opacity-75">
+                      {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      -
+                      {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              )
-            })
-          ))}
+                  </div>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{event.name}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Typ</Label>
+                      <Badge style={{ background: event.color, color: '#fff' }}>{event.type}</Badge>
+                    </div>
+                    <div>
+                      <Label>Zeit</Label>
+                      <p>
+                        {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    {event.description && (
+                      <div>
+                        <Label>Beschreibung</Label>
+                        <p>{event.description}</p>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )
+          })}
         </div>
       </CardContent>
     </Card>
