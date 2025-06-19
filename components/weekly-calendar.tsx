@@ -78,26 +78,56 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
     setCurrentWeek(newDate)
   }
 
-  // Hilfsfunktion: Events für einen Tag und Stunde filtern (Slot-Logik)
-  const getEventsForDayAndHour = (date: Date, hour: string) => {
-    const slotStart = new Date(date)
-    slotStart.setHours(parseInt(hour), 0, 0, 0)
-    const slotEnd = new Date(slotStart)
-    slotEnd.setHours(slotStart.getHours() + 1)
+  // Hilfsfunktion: Events für einen Tag filtern
+  const getEventsForDay = (date: Date) => {
     return events.filter(event => {
       const eventStart = new Date(event.startTime)
-      const eventEnd = new Date(event.endTime)
-      // Event beginnt vor Ende des Slots und endet nach Start des Slots
       return (
-        eventStart < slotEnd && eventEnd > slotStart &&
         eventStart.getFullYear() === date.getFullYear() &&
-        eventStart.getMonth() === date.getMonth()
+        eventStart.getMonth() === date.getMonth() &&
+        eventStart.getDate() === date.getDate()
       )
     })
   }
 
+  // Hilfsfunktion: Prozentuale Position und Höhe für einen Event-Block berechnen (00:00-24:00)
+  const getEventBlockStyle = (event: CalendarEvent) => {
+    const dayStart = 0 // 00:00 in Minuten
+    const dayEnd = 24 * 60 // 24:00 in Minuten
+    const eventStart = new Date(event.startTime)
+    const eventEnd = new Date(event.endTime)
+    const startMinutes = eventStart.getHours() * 60 + eventStart.getMinutes()
+    const endMinutes = eventEnd.getHours() * 60 + eventEnd.getMinutes()
+    // Begrenze auf den sichtbaren Bereich
+    const topMinutes = Math.max(startMinutes, dayStart)
+    const bottomMinutes = Math.min(endMinutes, dayEnd)
+    const totalMinutes = dayEnd - dayStart
+    if (bottomMinutes <= dayStart || topMinutes >= dayEnd) return null;
+    const top = ((topMinutes - dayStart) / totalMinutes) * 100
+    let height = ((bottomMinutes - topMinutes) / totalMinutes) * 100
+    // Mindestens 2px Höhe
+    const minHeightPercent = (2 / 768) * 100
+    if (height < minHeightPercent) height = minHeightPercent
+    return {
+      top: `${top}%`,
+      height: `${height}%`,
+      left: 0,
+      right: 0,
+      position: 'absolute' as const,
+      background: event.color,
+      color: '#fff',
+      borderRadius: '0.5rem',
+      padding: '0.25rem',
+      fontSize: '0.75rem',
+      cursor: 'pointer',
+      opacity: 0.95,
+      zIndex: 2,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+    }
+  }
+
   return (
-    <Card className="h-full">
+    <Card className="h-full border-none shadow-none bg-transparent">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Weekly Calendar</CardTitle>
@@ -115,34 +145,42 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
         </div>
       </CardHeader>
       <CardContent>
-        <div className={`grid ${onlyTwoDays ? 'grid-cols-3' : 'grid-cols-8'} gap-2 flex-1`} style={{ height: '100%' }}>
-          {/* Time column */}
-          <div className="space-y-2">
-            <div className="h-8"></div>
-            {timeSlots.slice(6, 24).map((time, idx) => (
-              <div key={time} className={`h-8 text-xs text-muted-foreground flex items-center border-t border-gray-100 ${idx === timeSlots.slice(6, 24).length - 1 ? 'border-b' : ''}`}>
-                {time}
+        <div className="relative w-full h-full" style={{ minHeight: 32 * 24 + 40 }}>
+          {/* Kopfzeile: Wochentage */}
+          <div className="flex pl-[40px] mb-2" style={{ height: 40 }}>
+            {daysToShow.map((date) => (
+              <div key={date.toISOString()} className="flex-1 text-center font-medium flex flex-col justify-center">
+                <span>{days[date.getDay()]}</span>
+                <span className="text-xs text-muted-foreground">{date.getDate()}</span>
               </div>
             ))}
           </div>
-
-          {/* Day columns */}
-          {daysToShow.map((date) => (
-            <div key={date.toISOString()} className="space-y-2">
-              <div className="h-8 text-center">
-                <div className="text-sm font-medium">{days[date.getDay()]}</div>
-                <div className="text-xs text-muted-foreground">{date.getDate()}</div>
+          {/* Trennlinie */}
+          <div className="w-full h-px bg-gray-600 mb-1" style={{ marginLeft: 40 }}></div>
+          {/* Raster: Uhrzeiten + Linien */}
+          <div className="absolute inset-x-0" style={{ top: 40, zIndex: 0, width: '100%', height: 32 * 24 }}>
+            {timeSlots.map((time, idx) => (
+              <div key={time} className="flex items-center h-8 text-xs text-muted-foreground w-full">
+                <span style={{ minWidth: 40 }}>{time}</span>
+                {daysToShow.map((date) => (
+                  <div key={date.toISOString()} className="flex-1 border-b border-gray-500/40 h-full"></div>
+                ))}
               </div>
-
-              <div className="relative space-y-1">
-                {timeSlots.slice(6, 24).map((time) => (
-                  <div key={time} className="h-8 border-t border-gray-100 relative">
-                    {getEventsForDayAndHour(date, time.split(":")[0]).map((event, idx) => (
+            ))}
+          </div>
+          {/* Events absolut darüber, mit Offset für Kopfzeile */}
+          <div className="absolute left-[40px]" style={{ top: 40, width: 'calc(100% - 40px)', height: 32 * 24, zIndex: 10 }}>
+            <div className="relative w-full h-full">
+              {daysToShow.map((date) => (
+                <div key={date.toISOString()} className="absolute" style={{ left: `${(daysToShow.indexOf(date) / daysToShow.length) * 100}%`, width: `${100 / daysToShow.length}%`, height: '100%' }}>
+                  {getEventsForDay(date).map((event, idx) => {
+                    const style = getEventBlockStyle(event);
+                    if (!style) return null;
+                    return (
                       <Dialog key={event.name + event.startTime + idx}>
                         <DialogTrigger asChild>
                           <div
-                            className={`absolute inset-x-0 top-0 h-full rounded text-xs p-1 cursor-pointer hover:opacity-80`}
-                            style={{ background: event.color, color: '#fff' }}
+                            style={style}
                             onClick={() => setSelectedEvent(event)}
                           >
                             <div className="truncate font-medium">{event.name}</div>
@@ -177,12 +215,12 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
                           </div>
                         </DialogContent>
                       </Dialog>
-                    ))}
-                  </div>
-                ))}
-              </div>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </CardContent>
     </Card>
