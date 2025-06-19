@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import axios from "axios"
 import React from "react"
+import { useAuth } from "@clerk/nextjs"
 
 interface CalendarEvent {
   name: string
@@ -41,18 +42,20 @@ async function getCalendarEvents(): Promise<CalendarEvent[]> {
 }
 
 export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean }) {
+  const { isLoaded, isSignedIn } = useAuth()
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
     getCalendarEvents()
       .then(data => {
         setEvents(data)
         console.log("Geladene Events:", data)
       })
       .catch(() => setEvents([]))
-  }, [])
+  }, [isLoaded, isSignedIn])
 
   const getWeekDates = (date: Date) => {
     const week = []
@@ -206,22 +209,31 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
               dayEnd.setHours(23, 59, 59, 999)
               // Prüfe, ob das Event an diesem Tag sichtbar ist
               if (eventEnd < dayStart || eventStart > dayEnd) continue
-              // Berechne Startzeit für diesen Tag
               let blockStart = 0
-              if (eventStart > dayStart && eventStart < dayEnd) {
-                blockStart = eventStart.getHours() + eventStart.getMinutes() / 60
-              }
-              // Berechne Endzeit für diesen Tag
               let blockEnd = 24
-              if (eventEnd > dayStart && eventEnd < dayEnd) {
-                blockEnd = eventEnd.getHours() + eventEnd.getMinutes() / 60
-              }
-              // Wenn Start und Ende am selben Tag liegen
-              if (eventStart > dayStart && eventEnd < dayEnd) {
+              if (eventStart.toDateString() === day.toDateString() && eventEnd.toDateString() === day.toDateString()) {
+                // Start- und Endtag gleich
                 blockStart = eventStart.getHours() + eventStart.getMinutes() / 60
                 blockEnd = eventEnd.getHours() + eventEnd.getMinutes() / 60
-                if (blockEnd === blockStart) blockEnd = blockStart + 0.25
+              } else if (eventStart.toDateString() === day.toDateString() && eventEnd > dayEnd) {
+                // Starttag, Event geht über diesen Tag hinaus
+                blockStart = eventStart.getHours() + eventStart.getMinutes() / 60
+                if (blockStart < 0.01) blockStart = 0 // Wenn Startzeit Mitternacht ist, wirklich ganz oben
+                blockEnd = 24
+              } else if (eventEnd.toDateString() === day.toDateString() && eventStart < dayStart) {
+                // Endtag, Event hat vor diesem Tag begonnen
+                blockStart = 0
+                blockEnd = eventEnd.getHours() + eventEnd.getMinutes() / 60
+              } else if (eventStart < dayStart && eventEnd > dayEnd) {
+                // Zwischentag, Event geht über den ganzen Tag
+                blockStart = 0
+                blockEnd = 24
+              } else {
+                // Fallback: voller Tag
+                blockStart = 0
+                blockEnd = 24
               }
+              if (blockEnd === blockStart) blockEnd = blockStart + 0.25
               // Grid-Zeilen berechnen
               let gridRowStart = 2 + blockStart
               let gridRowEnd = 2 + blockEnd
