@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
 import { WeeklyCalendar } from "@/components/weekly-calendar"
-import { Plus, Edit, Trash2 } from "lucide-react"
+import { Plus, Edit, Trash2, RotateCcw } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -55,6 +55,8 @@ export default function TimeblockerPage() {
   const [editTimeblockerId, setEditTimeblockerId] = useState<string | null>(null)
   const [editTimeblocker, setEditTimeblocker] = useState<Omit<Timeblocker, 'id' | 'userId'> | null>(null)
   const { isLoaded, isSignedIn } = useAuth();
+  const [dateError, setDateError] = useState<string | null>(null)
+  const [calendarKey, setCalendarKey] = useState(0)
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -68,6 +70,28 @@ export default function TimeblockerPage() {
     }
     fetchTimeblockers();
   }, [isLoaded, isSignedIn]);
+
+  // Validierung für Start- und Enddatum
+  useEffect(() => {
+    if (newTimeblocker.startDate && newTimeblocker.endDate) {
+      const start = new Date(newTimeblocker.startDate)
+      const end = new Date(newTimeblocker.endDate)
+      if (end < start) {
+        setDateError('End date cannot be before start date.')
+      } else {
+        setDateError(null)
+      }
+    } else {
+      setDateError(null)
+    }
+  }, [newTimeblocker.startDate, newTimeblocker.endDate])
+
+  // Validierung für Pflichtfelder und Datum
+  const isSaveDisabled =
+    !newTimeblocker.name ||
+    !newTimeblocker.startDate ||
+    !newTimeblocker.endDate ||
+    !!dateError;
 
   async function handleAddTimeblocker() {
     try {
@@ -131,6 +155,16 @@ export default function TimeblockerPage() {
     }
   }
 
+  async function refreshTimeblockersAndCalendar() {
+    // Timeblockers neu laden
+    try {
+      const data = await getTimeblockers();
+      setTimeblockers(data);
+    } catch (e) {}
+    // Kalender neu rendern (indem wir den Key ändern)
+    setCalendarKey(prev => prev + 1)
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -150,10 +184,15 @@ export default function TimeblockerPage() {
           <div className="flex flex-row gap-4 h-full flex-1">
             <div className="w-1/2 h-full flex flex-col flex-1">
               {/* Kalender für zwei Tage */}
-              <WeeklyCalendar />
+              <WeeklyCalendar key={calendarKey} />
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">
               <div className="flex justify-between items-center mb-4">
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="icon" onClick={refreshTimeblockersAndCalendar} title="Refresh">
+                    <RotateCcw className="h-5 w-5" />
+                  </Button>
+                </div>
                 <h2 className="text-2xl font-bold">My Timeblockers</h2>
                 <Dialog open={isAdding} onOpenChange={setIsAdding}>
                   <DialogTrigger asChild>
@@ -164,29 +203,29 @@ export default function TimeblockerPage() {
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>Create new Timeblocker</DialogTitle>
+                      <DialogTitle>Add Timeblocker</DialogTitle>
                     </DialogHeader>
                     <div className="grid grid-cols-2 gap-6 py-4">
                       <div className="col-span-2">
                         <Label htmlFor="tb-name">Name</Label>
-                        <Input id="tb-name" value={newTimeblocker.name} onChange={e => setNewTimeblocker({ ...newTimeblocker, name: e.target.value })} className="mt-2" />
+                        <Input id="tb-name" value={newTimeblocker.name} onChange={e => setNewTimeblocker(prev => ({ ...prev, name: e.target.value }))} className="mt-2" />
                       </div>
                       <div className="col-span-2">
                         <Label htmlFor="tb-description">Description</Label>
-                        <Textarea id="tb-description" value={newTimeblocker.description} onChange={e => setNewTimeblocker({ ...newTimeblocker, description: e.target.value })} className="mt-2 min-h-[80px]" />
+                        <Textarea id="tb-description" value={newTimeblocker.description} onChange={e => setNewTimeblocker(prev => ({ ...prev, description: e.target.value }))} className="mt-2 min-h-[80px]" />
                       </div>
                       <div>
                         <Label htmlFor="tb-start">Start</Label>
-                        <Input id="tb-start" type="datetime-local" value={(newTimeblocker.startDate ?? "") + ""} onChange={e => setNewTimeblocker({ ...newTimeblocker, startDate: e.target.value ?? "" })} className="mt-2" />
+                        <Input id="tb-start" type="datetime-local" value={newTimeblocker.startDate} onChange={e => setNewTimeblocker(prev => ({ ...prev, startDate: e.target.value }))} className="mt-2" />
                       </div>
                       <div>
                         <Label htmlFor="tb-end">End</Label>
-                        <Input id="tb-end" type="datetime-local" value={(newTimeblocker.endDate ?? "") + ""} onChange={e => setNewTimeblocker({ ...newTimeblocker, endDate: e.target.value ?? "" })} className="mt-2" />
+                        <Input id="tb-end" type="datetime-local" value={newTimeblocker.endDate} onChange={e => setNewTimeblocker(prev => ({ ...prev, endDate: e.target.value }))} className="mt-2" />
                       </div>
                       <div>
                         <Label htmlFor="tb-occurrence">Occurrence</Label>
-                        <Select value={newTimeblocker.occurrence} onValueChange={val => setNewTimeblocker({ ...newTimeblocker, occurrence: val as Occurrence })}>
-                          <SelectTrigger className="mt-2">
+                        <Select value={newTimeblocker.occurrence} onValueChange={val => setNewTimeblocker(prev => ({ ...prev, occurrence: val as Occurrence }))}>
+                          <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -199,7 +238,7 @@ export default function TimeblockerPage() {
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
                       <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
-                      <Button onClick={handleAddTimeblocker}>Save</Button>
+                      <Button onClick={handleAddTimeblocker}>Add</Button>
                     </div>
                   </DialogContent>
                 </Dialog>

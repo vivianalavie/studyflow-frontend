@@ -94,6 +94,13 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
     })
   }
 
+  // Hilfsfunktion für robusten Tagesvergleich (ohne Uhrzeit)
+  function isSameDay(a: Date, b: Date) {
+    return a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+  }
+
   // Hilfsfunktion: Prozentuale Position und Höhe für einen Event-Block berechnen (00:00-24:00)
   const getEventBlockStyle = (event: CalendarEvent) => {
     const dayStart = 0 // 00:00 in Minuten
@@ -180,16 +187,24 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
             <React.Fragment key={rowIdx}>
               <div
                 key={"time-" + time}
-                className="border-b border-gray-600 text-xs text-muted-foreground flex items-center justify-end pr-2 bg-transparent"
-                style={{ gridColumn: 1, gridRow: rowIdx + 2 }}
+                className="text-xs text-muted-foreground flex items-center justify-end pr-2 bg-transparent"
+                style={{
+                  gridColumn: 1, gridRow: rowIdx + 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'var(--calendar-line-color, #e5e7eb)'
+                }}
               >
                 {time}
               </div>
               {daysToShow.map((date, colIdx) => (
                 <div
                   key={"slot-" + colIdx + "-" + rowIdx}
-                  className="border-b border-gray-600 bg-transparent"
-                  style={{ gridColumn: colIdx + 2, gridRow: rowIdx + 2 }}
+                  className="bg-transparent"
+                  style={{
+                    gridColumn: colIdx + 2, gridRow: rowIdx + 2,
+                    borderBottom: '1px solid',
+                    borderColor: 'var(--calendar-line-color, #e5e7eb)'
+                  }}
                 ></div>
               ))}
             </React.Fragment>
@@ -211,21 +226,20 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
               if (eventEnd < dayStart || eventStart > dayEnd) continue
               let blockStart = 0
               let blockEnd = 24
-              if (eventStart.toDateString() === day.toDateString() && eventEnd.toDateString() === day.toDateString()) {
-                // Start- und Endtag gleich
+              if (isSameDay(eventStart, day) && isSameDay(eventEnd, day)) {
+                // Start- und Endtag gleich (eintägig)
                 blockStart = eventStart.getHours() + eventStart.getMinutes() / 60
                 blockEnd = eventEnd.getHours() + eventEnd.getMinutes() / 60
-              } else if (eventStart.toDateString() === day.toDateString() && eventEnd > dayEnd) {
-                // Starttag, Event geht über diesen Tag hinaus
+              } else if (isSameDay(eventStart, day)) {
+                // Starttag (egal wie viele Tage)
                 blockStart = eventStart.getHours() + eventStart.getMinutes() / 60
-                if (blockStart < 0.01) blockStart = 0 // Wenn Startzeit Mitternacht ist, wirklich ganz oben
                 blockEnd = 24
-              } else if (eventEnd.toDateString() === day.toDateString() && eventStart < dayStart) {
-                // Endtag, Event hat vor diesem Tag begonnen
+              } else if (isSameDay(eventEnd, day)) {
+                // Endtag (egal wie viele Tage)
                 blockStart = 0
                 blockEnd = eventEnd.getHours() + eventEnd.getMinutes() / 60
               } else if (eventStart < dayStart && eventEnd > dayEnd) {
-                // Zwischentag, Event geht über den ganzen Tag
+                // Zwischentag
                 blockStart = 0
                 blockEnd = 24
               } else {
