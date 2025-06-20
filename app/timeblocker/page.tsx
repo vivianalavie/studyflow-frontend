@@ -57,6 +57,7 @@ export default function TimeblockerPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const [dateError, setDateError] = useState<string | null>(null)
   const [calendarKey, setCalendarKey] = useState(0)
+  const [scrollToEventRequest, setScrollToEventRequest] = useState<{ name: string, startTime: string } | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -184,7 +185,7 @@ export default function TimeblockerPage() {
           <div className="flex flex-row gap-4 h-full flex-1">
             <div className="w-1/2 h-full flex flex-col flex-1">
               {/* Kalender für zwei Tage */}
-              <WeeklyCalendar key={calendarKey} />
+              <WeeklyCalendar key={calendarKey} scrollToEventRequest={scrollToEventRequest ?? undefined} />
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">
               <div className="flex justify-between items-center mb-4">
@@ -246,7 +247,9 @@ export default function TimeblockerPage() {
               <div className="space-y-4">
                 {timeblockers.length === 0 && <div className="text-muted-foreground">No timeblockers yet.</div>}
                 {timeblockers.map(tb => (
-                  <Card key={tb.id}>
+                  <Card key={tb.id} onClick={() => {
+                    setScrollToEventRequest({ name: tb.name, startTime: tb.startDate });
+                  }} style={{ cursor: 'pointer' }}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>

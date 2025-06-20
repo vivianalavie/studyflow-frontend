@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useLayoutEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -54,11 +54,12 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean }) {
+export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest }: { onlyTwoDays?: boolean, scrollToEventRequest?: { name: string, startTime: string } }) {
   const { isLoaded, isSignedIn } = useAuth()
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const scrollRequestRef = useRef<{ name: string, startTime: string } | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
@@ -69,6 +70,41 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
       })
       .catch(() => setEvents([]))
   }, [isLoaded, isSignedIn])
+
+  useLayoutEffect(() => {
+    if (!scrollToEventRequest) return;
+    scrollRequestRef.current = scrollToEventRequest;
+    const eventDate = new Date(scrollToEventRequest.startTime);
+    // Prüfe, ob Termin in aktueller Woche liegt
+    const weekStart = new Date(currentWeek);
+    weekStart.setDate(currentWeek.getDate() - currentWeek.getDay());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    if (eventDate < weekStart || eventDate > weekEnd) {
+      // Setze Woche auf die des Events
+      const newWeek = new Date(eventDate);
+      newWeek.setDate(eventDate.getDate() - eventDate.getDay());
+      setCurrentWeek(newWeek);
+      return;
+    }
+    // Nach Rendern scrollen
+    setTimeout(() => {
+      const id = `event-${btoa(encodeURIComponent(scrollToEventRequest.name + '_' + scrollToEventRequest.startTime))}`;
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-red-500');
+        // Hintergrund dunkler machen
+        const origBg = el.style.backgroundColor;
+        el.style.backgroundColor = 'rgba(0, 40, 120, 0.85)'; // dunkleres Blau, alternativ: per Filter
+        setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-red-500');
+          el.style.backgroundColor = origBg;
+        }, 2000);
+      }
+      scrollRequestRef.current = null;
+    }, 200);
+  }, [scrollToEventRequest, currentWeek]);
 
   const getWeekDates = (date: Date) => {
     const week = []
@@ -183,7 +219,7 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
           }}
         >
           {/* Kopfzeile */}
-          <div className="border-b border-gray-600 bg-transparent" style={{ gridColumn: 1, gridRow: 1 }}></div>
+          <div className="bg-transparent" style={{ gridColumn: '1 / span 8', gridRow: 1, borderBottom: '1.5px solid #000' }}></div>
           {daysToShow.map((date, idx) => (
             <div
               key={date.toISOString()}
@@ -203,8 +239,7 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
                 className="text-xs text-muted-foreground flex items-center justify-end pr-2 bg-transparent"
                 style={{
                   gridColumn: 1, gridRow: rowIdx + 2,
-                  borderBottom: '1px solid',
-                  borderColor: 'var(--calendar-line-color, #e5e7eb)'
+                  borderBottom: `1px solid var(--calendar-line-color, #e5e7eb)`,
                 }}
               >
                 {time}
@@ -218,8 +253,8 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
                       style={{
                         gridColumn: colIdx + 2,
                         gridRow: rowIdx + 2,
-                        borderBottom: '1px solid var(--calendar-line-color, #e5e7eb)',
-                        borderRight: colIdx === daysToShow.length - 1 ? undefined : '1px solid var(--calendar-line-color, #e5e7eb)',
+                        borderBottom: `1px solid var(--calendar-line-color, #e5e7eb)`,
+                        borderRight: colIdx === daysToShow.length - 1 ? undefined : `1px solid var(--calendar-line-color, #e5e7eb)`,
                         background: 'transparent',
                         zIndex: 1,
                         pointerEvents: 'none',
@@ -279,6 +314,7 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
                         <Dialog key={event.name + event.startTime + idx + '-' + colIdx}>
                           <DialogTrigger asChild>
                             <div
+                              id={`event-${btoa(encodeURIComponent(event.name + '_' + event.startTime))}`}
                               style={{
                                 position: 'absolute',
                                 left: 2,
@@ -322,23 +358,23 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
                             </DialogHeader>
                             <div className="space-y-4">
                               <div>
-                                <Label>Typ</Label>
+                                <Label>Type</Label>
                                 <Badge style={{ background: event.color, color: '#fff' }}>{event.type}</Badge>
                               </div>
                               <div>
-                                <Label>Zeit</Label>
+                                <Label>Time</Label>
                                 <p>
                                   {new Date(event.startTime).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                   {' - '}
                                   {new Date(event.endTime).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               </div>
-                              {event.description && (
-                                <div>
-                                  <Label>Beschreibung</Label>
+                              <div>
+                                <Label>Description</Label>
+                                {event.description && (
                                   <p>{event.description}</p>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
                           </DialogContent>
                         </Dialog>
