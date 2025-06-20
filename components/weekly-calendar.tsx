@@ -41,6 +41,19 @@ async function getCalendarEvents(): Promise<CalendarEvent[]> {
   return response.json();
 }
 
+// Hilfsfunktion: HEX zu RGBA mit Alpha
+function hexToRgba(hex: string, alpha: number) {
+  let c = hex.replace('#', '');
+  if (c.length === 3) {
+    c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+  }
+  const num = parseInt(c, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean }) {
   const { isLoaded, isSignedIn } = useAuth()
   const [currentWeek, setCurrentWeek] = useState(new Date())
@@ -125,7 +138,7 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
       left: 0,
       right: 0,
       position: 'absolute' as const,
-      background: event.color,
+      background: event.color.startsWith('#') ? hexToRgba(event.color, 0.6) : event.color,
       color: '#fff',
       borderRadius: '0.5rem',
       padding: '0.25rem',
@@ -133,7 +146,7 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
       cursor: 'pointer',
       opacity: 0.95,
       zIndex: 2,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+      boxShadow: undefined,
     }
   }
 
@@ -197,127 +210,145 @@ export function WeeklyCalendar({ onlyTwoDays = false }: { onlyTwoDays?: boolean 
                 {time}
               </div>
               {daysToShow.map((date, colIdx) => (
-                <div
-                  key={"slot-" + colIdx + "-" + rowIdx}
-                  className="bg-transparent"
-                  style={{
-                    gridColumn: colIdx + 2, gridRow: rowIdx + 2,
-                    borderBottom: '1px solid',
-                    borderColor: 'var(--calendar-line-color, #e5e7eb)'
-                  }}
-                ></div>
+                <React.Fragment key={date.toISOString()}>
+                  {/* Raster-Linien für jede Tages-Spalte und Stunde */}
+                  {timeSlots.map((_, rowIdx) => (
+                    <div
+                      key={"line-" + colIdx + "-" + rowIdx}
+                      style={{
+                        gridColumn: colIdx + 2,
+                        gridRow: rowIdx + 2,
+                        borderBottom: '1px solid var(--calendar-line-color, #e5e7eb)',
+                        borderRight: colIdx === daysToShow.length - 1 ? undefined : '1px solid var(--calendar-line-color, #e5e7eb)',
+                        background: 'transparent',
+                        zIndex: 1,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  ))}
+                  {/* Overlay-Container für Events pro Tag */}
+                  <div
+                    style={{
+                      gridColumn: colIdx + 2,
+                      gridRow: '2 / span 24',
+                      position: 'relative',
+                      pointerEvents: 'none',
+                      zIndex: 3,
+                    }}
+                  >
+                    {events.map((event, idx) => {
+                      const eventStart = new Date(event.startTime)
+                      const eventEnd = new Date(event.endTime)
+                      // Prüfe, ob das Event an diesem Tag sichtbar ist
+                      const dayStart = new Date(date)
+                      dayStart.setHours(0, 0, 0, 0)
+                      const dayEnd = new Date(date)
+                      dayEnd.setHours(23, 59, 59, 999)
+                      if (eventEnd <= dayStart || eventStart >= dayEnd) return null
+                      // Berechne top und height in Prozent für diesen Tag
+                      let top = 0, height = 0
+                      function isSameDay(a: Date, b: Date) {
+                        return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+                      }
+                      if (isSameDay(eventStart, date) && isSameDay(eventEnd, date)) {
+                        // Start- und Endtag gleich (eintägig)
+                        top = (eventStart.getHours() * 60 + eventStart.getMinutes()) / (24 * 60) * 100
+                        height = ((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60)) / (24 * 60) * 100
+                      } else if (isSameDay(eventStart, date)) {
+                        // Starttag
+                        top = (eventStart.getHours() * 60 + eventStart.getMinutes()) / (24 * 60) * 100
+                        height = (24 * 60 - (eventStart.getHours() * 60 + eventStart.getMinutes())) / (24 * 60) * 100
+                      } else if (isSameDay(eventEnd, date)) {
+                        // Endtag
+                        top = 0
+                        height = ((eventEnd.getHours() * 60 + eventEnd.getMinutes())) / (24 * 60) * 100
+                      } else if (eventStart < dayStart && eventEnd > dayEnd) {
+                        // Zwischentag
+                        top = 0
+                        height = 100
+                      } else {
+                        // Fallback: voller Tag
+                        top = 0
+                        height = 100
+                      }
+                      // Mindestens 2px Höhe
+                      const minHeightPercent = (2 / (24 * 48)) * 100
+                      if (height < minHeightPercent) height = minHeightPercent
+                      const showOnlyTitle = height < 6; // ca. 6% entspricht ~28px bei 480px Höhe
+                      return (
+                        <Dialog key={event.name + event.startTime + idx + '-' + colIdx}>
+                          <DialogTrigger asChild>
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: 2,
+                                right: 2,
+                                top: `${top}%`,
+                                height: `${height}%`,
+                                background: event.color.startsWith('#') ? hexToRgba(event.color, 0.6) : event.color,
+                                color: '#fff',
+                                borderRadius: '0.5rem',
+                                padding: '0.25rem',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                opacity: 0.85,
+                                zIndex: 2,
+                                boxShadow: undefined,
+                                minHeight: '2px',
+                                pointerEvents: 'auto', // Dialog bleibt klickbar
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                              }}
+                              onClick={() => setSelectedEvent(event)}
+                            >
+                              <div className="truncate font-medium">{event.name}</div>
+                              {!showOnlyTitle && (
+                                <div className="truncate opacity-75" style={{whiteSpace: 'pre-line'}}>
+                                  {(() => {
+                                    const start = new Date(event.startTime)
+                                    const end = new Date(event.endTime)
+                                    const startStr = `${start.getDate().toString().padStart(2, '0')}.${(start.getMonth()+1).toString().padStart(2, '0')}. ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} until`
+                                    const endStr = `${end.getDate().toString().padStart(2, '0')}.${(end.getMonth()+1).toString().padStart(2, '0')}. ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                    return `${startStr}\n${endStr}`
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>{event.name}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label>Typ</Label>
+                                <Badge style={{ background: event.color, color: '#fff' }}>{event.type}</Badge>
+                              </div>
+                              <div>
+                                <Label>Zeit</Label>
+                                <p>
+                                  {new Date(event.startTime).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  {' - '}
+                                  {new Date(event.endTime).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                              {event.description && (
+                                <div>
+                                  <Label>Beschreibung</Label>
+                                  <p>{event.description}</p>
+                                </div>
+                              )}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )
+                    })}
+                  </div>
+                </React.Fragment>
               ))}
             </React.Fragment>
           ))}
-
-          {/* Events */}
-          {events.map((event, idx) => {
-            const eventStart = new Date(event.startTime)
-            const eventEnd = new Date(event.endTime)
-            const blocks = []
-            for (let dayIdx = 0; dayIdx < daysToShow.length; dayIdx++) {
-              const day = daysToShow[dayIdx]
-              // Start und Ende des aktuellen Tages
-              const dayStart = new Date(day)
-              dayStart.setHours(0, 0, 0, 0)
-              const dayEnd = new Date(day)
-              dayEnd.setHours(23, 59, 59, 999)
-              // Prüfe, ob das Event an diesem Tag sichtbar ist
-              if (eventEnd < dayStart || eventStart > dayEnd) continue
-              let blockStart = 0
-              let blockEnd = 24
-              if (isSameDay(eventStart, day) && isSameDay(eventEnd, day)) {
-                // Start- und Endtag gleich (eintägig)
-                blockStart = eventStart.getHours() + eventStart.getMinutes() / 60
-                blockEnd = eventEnd.getHours() + eventEnd.getMinutes() / 60
-              } else if (isSameDay(eventStart, day)) {
-                // Starttag (egal wie viele Tage)
-                blockStart = eventStart.getHours() + eventStart.getMinutes() / 60
-                blockEnd = 24
-              } else if (isSameDay(eventEnd, day)) {
-                // Endtag (egal wie viele Tage)
-                blockStart = 0
-                blockEnd = eventEnd.getHours() + eventEnd.getMinutes() / 60
-              } else if (eventStart < dayStart && eventEnd > dayEnd) {
-                // Zwischentag
-                blockStart = 0
-                blockEnd = 24
-              } else {
-                // Fallback: voller Tag
-                blockStart = 0
-                blockEnd = 24
-              }
-              if (blockEnd === blockStart) blockEnd = blockStart + 0.25
-              // Grid-Zeilen berechnen
-              let gridRowStart = 2 + blockStart
-              let gridRowEnd = 2 + blockEnd
-              gridRowStart = Math.max(2, Math.min(gridRowStart, 26))
-              gridRowEnd = Math.max(gridRowStart + 0.01, Math.min(gridRowEnd, 26))
-              blocks.push(
-                <Dialog key={event.name + event.startTime + idx + '-' + dayIdx}>
-                  <DialogTrigger asChild>
-                    <div
-                      style={{
-                        gridColumn: dayIdx + 2,
-                        gridRow: `${gridRowStart} / ${gridRowEnd}`,
-                        background: event.color,
-                        color: '#fff',
-                        borderRadius: '0.5rem',
-                        padding: '0.25rem',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        opacity: 0.95,
-                        zIndex: 2,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        minHeight: '2px',
-                        position: 'relative',
-                      }}
-                      onClick={() => setSelectedEvent(event)}
-                    >
-                      <div className="truncate font-medium">{event.name}</div>
-                      <div className="truncate opacity-75" style={{whiteSpace: 'pre-line'}}>
-                        {/* Start- und Enddatum (ohne Jahr) jeweils in eigener Zeile, 'till' am Ende der ersten Zeile */}
-                        {(() => {
-                          const start = new Date(event.startTime)
-                          const end = new Date(event.endTime)
-                          const startStr = `${start.getDate().toString().padStart(2, '0')}.${(start.getMonth()+1).toString().padStart(2, '0')}. ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} until`
-                          const endStr = `${end.getDate().toString().padStart(2, '0')}.${(end.getMonth()+1).toString().padStart(2, '0')}. ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                          return `${startStr}\n${endStr}`
-                        })()}
-                      </div>
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{event.name}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Typ</Label>
-                        <Badge style={{ background: event.color, color: '#fff' }}>{event.type}</Badge>
-                      </div>
-                      <div>
-                        <Label>Zeit</Label>
-                        <p>
-                          {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      {event.description && (
-                        <div>
-                          <Label>Beschreibung</Label>
-                          <p>{event.description}</p>
-                        </div>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )
-            }
-            return blocks
-          })}
         </div>
       </CardContent>
     </Card>
