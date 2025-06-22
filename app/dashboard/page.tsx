@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useState, useEffect } from "react"
 import { CheckCircle, Circle, Play } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { getAssignments } from "@/app/api/assignments"
+import { getAssignments, generateScheduleForAssignment } from "@/app/api/assignments"
 import { Assignment } from "@/types/assignment"
 import { Course, getCourses } from "@/app/api/courses"
 
@@ -135,7 +135,18 @@ export default function DashboardPage() {
                             <span className="text-xs">{assignment.totalAchievablePoints}/{assignment.courseTotalPoints} pts</span>
                           </div>
                         </div>
-                        <button className="ml-4" aria-label="Algorithmus starten">
+                        <button
+                          className="ml-4"
+                          aria-label="Algorithmus starten"
+                          onClick={async () => {
+                            try {
+                              await generateScheduleForAssignment(assignment.id)
+                              alert('Study Sessions wurden generiert!')
+                            } catch (e) {
+                              alert('Fehler beim Generieren der Study Sessions')
+                            }
+                          }}
+                        >
                           <Play className="w-6 h-6 text-primary" />
                         </button>
                       </CardContent>
