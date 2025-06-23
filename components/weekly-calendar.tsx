@@ -18,6 +18,13 @@ interface CalendarEvent {
   endTime: string   // ISO-String
   type: "AUTOMATIC" | "PERSONAL"
   color: string
+  courseId?: string
+}
+
+interface Course {
+  id: string;
+  name: string;
+  color?: string;
 }
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -54,7 +61,19 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest }: { onlyTwoDays?: boolean, scrollToEventRequest?: { name: string, startTime: string } }) {
+// Mapping von Farbnamen zu HEX-Farben (wie auf der Courses-Seite)
+const colorHexMap: Record<string, string> = {
+  blue: "#3b82f6",
+  green: "#22c55e",
+  red: "#ef4444",
+  yellow: "#facc15",
+  purple: "#a21caf",
+  pink: "#ec4899",
+  indigo: "#6366f1",
+  teal: "#14b8a6",
+};
+
+export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, courses = [] }: { onlyTwoDays?: boolean, scrollToEventRequest?: { name: string, startTime: string }, courses?: Course[] }) {
   const { isLoaded, isSignedIn } = useAuth()
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -65,11 +84,22 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest }: { 
     if (!isLoaded || !isSignedIn) return
     getCalendarEvents()
       .then(data => {
-        setEvents(data)
-        console.log("Geladene Events:", data)
+        // Setze für AUTOMATIC-Events die Kursfarbe als HEX-Wert
+        const eventsWithColor = data.map((event: CalendarEvent) => {
+          if (event.type === "AUTOMATIC" && event.courseId && courses.length > 0) {
+            const course = courses.find(c => c.id === event.courseId)
+            if (course && course.color) {
+              // Nutze das Mapping, um immer einen HEX-Wert zu bekommen
+              return { ...event, color: colorHexMap[course.color] || "#3b82f6" }
+            }
+          }
+          return event
+        })
+        setEvents(eventsWithColor)
+        console.log("Geladene Events:", eventsWithColor)
       })
       .catch(() => setEvents([]))
-  }, [isLoaded, isSignedIn])
+  }, [isLoaded, isSignedIn, courses])
 
   useLayoutEffect(() => {
     if (!scrollToEventRequest) return;
@@ -168,13 +198,24 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest }: { 
     // Mindestens 2px Höhe
     const minHeightPercent = (2 / 768) * 100
     if (height < minHeightPercent) height = minHeightPercent
+    // Farbcode bestimmen
+    let bgColor = "#3b82f6"; // Default: blue
+    if (event.color) {
+      if (event.color.startsWith("#")) {
+        bgColor = event.color;
+      } else if (colorHexMap[event.color]) {
+        bgColor = colorHexMap[event.color];
+      }
+    }
     return {
       top: `${top}%`,
       height: `${height}%`,
       left: 0,
       right: 0,
       position: 'absolute' as const,
-      background: event.color.startsWith('#') ? hexToRgba(event.color, 0.6) : event.color,
+      background: event.color.startsWith('#') 
+        ? hexToRgba(event.color, 0.6) 
+        : hexToRgba(colorHexMap[event.color] || "#3b82f6", 0.6),
       color: '#fff',
       borderRadius: '0.5rem',
       padding: '0.25rem',
@@ -321,7 +362,9 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest }: { 
                                 right: 2,
                                 top: `${top}%`,
                                 height: `${height}%`,
-                                background: event.color.startsWith('#') ? hexToRgba(event.color, 0.6) : event.color,
+                                background: event.color.startsWith('#') 
+                                  ? hexToRgba(event.color, 0.6) 
+                                  : hexToRgba(colorHexMap[event.color] || "#3b82f6", 0.6),
                                 color: '#fff',
                                 borderRadius: '0.5rem',
                                 padding: '0.25rem',
