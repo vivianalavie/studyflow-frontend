@@ -7,12 +7,16 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { useState, useEffect } from "react"
-import { CheckCircle, Circle, Play } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { CheckCircle, Circle, PlayCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { getAssignments, generateScheduleForAssignment } from "@/app/api/assignments"
 import { Assignment } from "@/types/assignment"
 import { Course, getCourses } from "@/app/api/courses"
+import { useAuth } from "@clerk/nextjs"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 // Mapping von Farbnamen zu Tailwind-Klassen für die Badge-Umrandung
 const borderColorClassMap: Record<string, string> = {
@@ -27,6 +31,7 @@ const borderColorClassMap: Record<string, string> = {
 }
 
 export default function DashboardPage() {
+  const { isLoaded, isSignedIn } = useAuth();
   // Hardcodierte ToDos
   const [todos, setTodos] = useState([
     { id: 1, text: "Mathe Zusammenfassung fertig machen", done: false },
@@ -36,7 +41,12 @@ export default function DashboardPage() {
   // Assignments für Algorithm-Bereich
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [algoDialogOpen, setAlgoDialogOpen] = useState(false);
+  const [algoSuccess, setAlgoSuccess] = useState(false);
+  const algoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [calendarKey, setCalendarKey] = useState(0);
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
     async function fetchData() {
       try {
         const [assignmentsRaw, coursesRaw] = await Promise.all([
@@ -60,7 +70,7 @@ export default function DashboardPage() {
       }
     }
     fetchData()
-  }, [])
+  }, [isLoaded, isSignedIn])
 
   function toggleTodo(id: number) {
     setTodos(todos => todos.map(todo => todo.id === id ? { ...todo, done: !todo.done } : todo))
@@ -139,15 +149,22 @@ export default function DashboardPage() {
                           className="ml-4"
                           aria-label="Algorithmus starten"
                           onClick={async () => {
+                            setAlgoDialogOpen(true);
+                            setAlgoSuccess(false);
+                            if (algoTimeoutRef.current) clearTimeout(algoTimeoutRef.current);
                             try {
                               await generateScheduleForAssignment(assignment.id)
-                              alert('Study Sessions wurden generiert!')
+                              setAlgoSuccess(true);
+                              setCalendarKey((k) => k + 1);
+                              algoTimeoutRef.current = setTimeout(() => setAlgoDialogOpen(false), 3000);
+                              toast.success("Algorithm successfully applied!");
                             } catch (e) {
-                              alert('Fehler beim Generieren der Study Sessions')
+                              setAlgoDialogOpen(false);
+                              toast.error("Algorithm failed. Please try again.");
                             }
                           }}
                         >
-                          <Play className="w-6 h-6 text-primary" />
+                          <PlayCircle className="w-8 h-8 text-primary rounded-full bg-primary/10 hover:bg-primary/20 transition" />
                         </button>
                       </CardContent>
                     </Card>
@@ -157,11 +174,26 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">
-              <WeeklyCalendar />
+              <WeeklyCalendar key={calendarKey} />
             </div>
           </div>
         </div>
       </SidebarInset>
+      <Dialog open={algoDialogOpen} onOpenChange={setAlgoDialogOpen}>
+        <DialogContent className="flex flex-col items-center gap-4 max-w-xs animate-fade-in">
+          {algoSuccess ? (
+            <>
+              <Loader2 className="w-10 h-10 text-green-500 animate-pulse" />
+              <span className="text-lg font-medium text-green-600">Algorithm successfully applied!</span>
+            </>
+          ) : (
+            <>
+              <Loader2 className="animate-spin w-10 h-10 text-primary" />
+              <span className="text-lg font-medium">Algorithm is running...</span>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 }
