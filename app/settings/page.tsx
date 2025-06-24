@@ -1,19 +1,125 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
-import { User, Bell, Calendar, Shield } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Clock, User, Calendar, Save, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { getUserPreferences, updateUserPreferences, UserPreferences } from "@/app/api/preferences"
+
+const weekdays = [
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
+]
+
+const studyDurationOptions = [
+  { value: 30, label: "30 minutes" },
+  { value: 60, label: "1 hour" },
+  { value: 90, label: "1.5 hours" },
+  { value: 120, label: "2 hours" },
+  { value: 180, label: "3 hours" },
+]
 
 export default function SettingsPage() {
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState<Partial<UserPreferences>>({})
+
+  useEffect(() => {
+    loadPreferences()
+  }, [])
+
+  const loadPreferences = async () => {
+    try {
+      setLoading(true)
+      const prefs = await getUserPreferences()
+      if (prefs) {
+        setPreferences(prefs)
+        setFormData(prefs)
+      }
+    } catch (error) {
+      toast.error("Failed to load preferences")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!formData.username || !formData.maxStudyDuration || !formData.startLearningTime || !formData.endLearningTime) {
+      toast.error("Please fill out all required fields")
+      return
+    }
+
+    try {
+      setSaving(true)
+      const success = await updateUserPreferences(formData as UserPreferences)
+      if (success) {
+        toast.success("Preferences saved successfully")
+        await loadPreferences() // Reload to get updated data
+      } else {
+        toast.error("Failed to save preferences")
+      }
+    } catch (error) {
+      toast.error("Failed to save preferences")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleWeekdayToggle = (weekday: string) => {
+    const currentBlackoutDays = formData.blackoutWeekdays || []
+    const newBlackoutDays = currentBlackoutDays.includes(weekday)
+      ? currentBlackoutDays.filter(day => day !== weekday)
+      : [...currentBlackoutDays, weekday]
+    
+    setFormData(prev => ({
+      ...prev,
+      blackoutWeekdays: newBlackoutDays
+    }))
+  }
+
+  if (loading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Settings</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </header>
+          <div className="flex flex-1 items-center justify-center">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>Loading preferences...</span>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -29,198 +135,158 @@ export default function SettingsPage() {
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="max-w-4xl">
-            <h1 className="text-3xl font-bold mb-6">Settings</h1>
+        
+        <div className="flex flex-1 flex-col gap-6 p-6">
+          <div className="max-w-4xl mx-auto w-full">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">Study Preferences</h1>
+              <p className="text-muted-foreground">
+                Adjust your study habits and schedule to your needs.
+              </p>
+            </div>
 
-            <Tabs defaultValue="profile" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="profile">Profile</TabsTrigger>
-                <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                <TabsTrigger value="study">Study Preferences</TabsTrigger>
-                <TabsTrigger value="security">Security</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="profile" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Personal Information
-                    </CardTitle>
-                    <CardDescription>Update your personal details and profile information.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input id="firstName" defaultValue="John" />
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <Input id="lastName" defaultValue="Doe" />
-                      </div>
-                    </div>
+            <div className="space-y-6">
+              {/* Personal Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Personal Information
+                  </CardTitle>
+                  <CardDescription>
+                    Your username is used for personalization.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        value={formData.username || ""}
+                        onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                        placeholder="Your name"
+                      />
                     </div>
-                    <div>
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <select className="w-full p-2 border rounded">
-                        <option>UTC-5 (Eastern Time)</option>
-                        <option>UTC-6 (Central Time)</option>
-                        <option>UTC-7 (Mountain Time)</option>
-                        <option>UTC-8 (Pacific Time)</option>
-                      </select>
-                    </div>
-                    <Button>Save Changes</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <TabsContent value="notifications" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="h-5 w-5" />
-                      Notification Preferences
-                    </CardTitle>
-                    <CardDescription>Choose what notifications you want to receive.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Study Session Reminders</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Get notified before your scheduled study sessions
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Assignment Deadlines</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Receive alerts for upcoming assignment deadlines
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Daily Study Goals</Label>
-                        <p className="text-sm text-muted-foreground">Daily reminders about your study goals</p>
-                      </div>
-                      <Switch />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Weekly Progress Reports</Label>
-                        <p className="text-sm text-muted-foreground">Weekly summary of your study progress</p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="study" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Study Preferences
-                    </CardTitle>
-                    <CardDescription>Customize your study schedule and preferences.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+              {/* Study Times */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Study Times
+                  </CardTitle>
+                  <CardDescription>
+                    Define your preferred study times and maximum session duration.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
                     <div>
-                      <Label htmlFor="sessionDuration">Default Study Session Duration</Label>
-                      <select className="w-full p-2 border rounded">
-                        <option>30 minutes</option>
-                        <option>1 hour</option>
-                        <option>1.5 hours</option>
-                        <option>2 hours</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label htmlFor="preferredTime">Preferred Study Time</Label>
-                      <select className="w-full p-2 border rounded">
-                        <option>Morning (6 AM - 12 PM)</option>
-                        <option>Afternoon (12 PM - 6 PM)</option>
-                        <option>Evening (6 PM - 10 PM)</option>
-                        <option>Night (10 PM - 6 AM)</option>
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="earliestTime">Earliest Study Time</Label>
-                        <Input id="earliestTime" type="time" defaultValue="07:00" />
-                      </div>
-                      <div>
-                        <Label htmlFor="latestTime">Latest Study Time</Label>
-                        <Input id="latestTime" type="time" defaultValue="22:00" />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Auto-schedule Study Sessions</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Automatically create study sessions based on your preferences
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <Button>Update Preferences</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="security" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5" />
-                      Security Settings
-                    </CardTitle>
-                    <CardDescription>Manage your account security and privacy.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label htmlFor="currentPassword">Current Password</Label>
-                      <Input id="currentPassword" type="password" />
-                    </div>
-                    <div>
-                      <Label htmlFor="newPassword">New Password</Label>
-                      <Input id="newPassword" type="password" />
-                    </div>
-                    <div>
-                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input id="confirmPassword" type="password" />
-                    </div>
-                    <Button>Change Password</Button>
-
-                    <Separator />
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Two-Factor Authentication</Label>
-                        <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
-                      </div>
-                      <Button variant="outline">Enable 2FA</Button>
+                      <Label htmlFor="maxStudyDuration">Maximum study session duration</Label>
+                      <Select
+                        value={formData.maxStudyDuration?.toString() || ""}
+                        onValueChange={(value) => setFormData(prev => ({ 
+                          ...prev, 
+                          maxStudyDuration: parseInt(value) 
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {studyDurationOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value.toString()}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    <div className="pt-4">
-                      <Button variant="destructive">Delete Account</Button>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        This action cannot be undone. All your data will be permanently deleted.
-                      </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="startLearningTime">Earliest study time</Label>
+                        <Input
+                          id="startLearningTime"
+                          type="time"
+                          value={formData.startLearningTime || ""}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            startLearningTime: e.target.value 
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="endLearningTime">Latest study time</Label>
+                        <Input
+                          id="endLearningTime"
+                          type="time"
+                          value={formData.endLearningTime || ""}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            endLearningTime: e.target.value 
+                          }))}
+                        />
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Blackout Days */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Blackout Days
+                  </CardTitle>
+                  <CardDescription>
+                    Select the days you do not want to study.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {weekdays.map((weekday) => (
+                      <div key={weekday.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={weekday.value}
+                          checked={formData.blackoutWeekdays?.includes(weekday.value) || false}
+                          onCheckedChange={() => handleWeekdayToggle(weekday.value)}
+                        />
+                        <Label htmlFor={weekday.value} className="text-sm font-normal">
+                          {weekday.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handleSave} 
+                  disabled={saving}
+                  className="min-w-[120px]"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </SidebarInset>
