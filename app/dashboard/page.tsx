@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [deleteCountdown, setDeleteCountdown] = useState<string | null>(null);
   const [deleteTimer, setDeleteTimer] = useState<NodeJS.Timeout | null>(null);
   const [deleteSeconds, setDeleteSeconds] = useState<number>(3);
+  const isDeletingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -138,19 +139,24 @@ export default function DashboardPage() {
       setDeleteCountdown(null);
       setDeleteTimer(null);
       setDeleteSeconds(3);
+      isDeletingRef.current = false;
       return;
     }
 
     // Erster Klick - Countdown starten
     setDeleteCountdown(id);
     setDeleteSeconds(3);
+    isDeletingRef.current = false;
     
     const timer = setInterval(() => {
       setDeleteSeconds(prev => {
         if (prev <= 1) {
           // Countdown abgelaufen - ToDo löschen
           clearInterval(timer);
-          handleDeleteTodoFinal(id);
+          if (!isDeletingRef.current) {
+            isDeletingRef.current = true;
+            handleDeleteTodoFinal(id);
+          }
           return 3;
         }
         return prev - 1;
@@ -173,6 +179,7 @@ export default function DashboardPage() {
       setDeleteCountdown(null);
       setDeleteTimer(null);
       setDeleteSeconds(3);
+      isDeletingRef.current = false;
     }
   }
 
