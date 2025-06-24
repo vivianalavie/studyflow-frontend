@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="space-y-3">
                   {showAddTodo && (
-                    <Card className="shadow-sm border border-gray-200">
+                    <Card className="shadow-sm border">
                       <CardContent className="flex items-center justify-between py-1 px-2 min-h-0 h-8 gap-2">
                         <Input
                           value={newTodoText}
@@ -238,7 +238,7 @@ export default function DashboardPage() {
                     </Card>
                   )}
                   {todos.map(todo => (
-                    <Card key={todo.id} className="shadow-sm border border-gray-200">
+                    <Card key={todo.id} className="shadow-sm border">
                       <CardContent className="flex items-center justify-between py-1 px-2 min-h-0 h-8 gap-2">
                         {editingId === todo.id ? (
                           <>
