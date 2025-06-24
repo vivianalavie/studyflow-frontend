@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useState, useEffect, useRef } from "react"
-import { CheckCircle, Circle, PlayCircle } from "lucide-react"
+import { CheckCircle, Circle, PlayCircle, Plus, Check, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { getAssignments, generateScheduleForAssignment } from "@/app/api/assignments"
 import { Assignment } from "@/types/assignment"
@@ -17,6 +17,8 @@ import { useAuth } from "@clerk/nextjs"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
+import { createTodo, getTodos, updateTodo, deleteTodo, ToDo } from "@/app/api/todos"
 
 // Mapping von Farbnamen zu Tailwind-Klassen für die Badge-Umrandung
 const borderColorClassMap: Record<string, string> = {
@@ -32,11 +34,8 @@ const borderColorClassMap: Record<string, string> = {
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn } = useAuth();
-  // Hardcodierte ToDos
-  const [todos, setTodos] = useState([
-    { id: 1, text: "Mathe Zusammenfassung fertig machen", done: false },
-    { id: 2, text: "Einkaufen: Brot, Milch, Eier", done: false },
-  ])
+  // ToDos State mit Backend-Typ
+  const [todos, setTodos] = useState<ToDo[]>([]);
 
   // Assignments für Algorithm-Bereich
   const [assignments, setAssignments] = useState<Assignment[]>([])
@@ -45,13 +44,23 @@ export default function DashboardPage() {
   const [algoSuccess, setAlgoSuccess] = useState(false);
   const algoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [calendarKey, setCalendarKey] = useState(0);
+  const [showAddTodo, setShowAddTodo] = useState(false);
+  const [newTodoText, setNewTodoText] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [deleteCountdown, setDeleteCountdown] = useState<string | null>(null);
+  const [deleteTimer, setDeleteTimer] = useState<NodeJS.Timeout | null>(null);
+  const [deleteSeconds, setDeleteSeconds] = useState<number>(3);
+
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     async function fetchData() {
       try {
-        const [assignmentsRaw, coursesRaw] = await Promise.all([
+        const [assignmentsRaw, coursesRaw, todosRaw] = await Promise.all([
           getAssignments(),
-          getCourses()
+          getCourses(),
+          getTodos()
         ])
         setCourses(coursesRaw)
         // Mappe courseName, courseColor, courseTotalPoints wie auf der Assignments-Seite
@@ -65,16 +74,14 @@ export default function DashboardPage() {
           }
         })
         setAssignments(assignmentsWithCourseInfo)
+        setTodos(todosRaw)
       } catch {
         setAssignments([])
+        setTodos([])
       }
     }
     fetchData()
   }, [isLoaded, isSignedIn])
-
-  function toggleTodo(id: number) {
-    setTodos(todos => todos.map(todo => todo.id === id ? { ...todo, done: !todo.done } : todo))
-  }
 
   function getDifficultyColor(difficulty: Assignment["difficulty"]) {
     switch (difficulty) {
@@ -84,6 +91,88 @@ export default function DashboardPage() {
       case "DIFFICULT": return "bg-red-100 text-red-800 border-red-200";
       case "VERY_DIFFICULT": return "bg-red-600 text-white border-red-600";
       default: return "bg-gray-100 text-gray-800 border-gray-300";
+    }
+  }
+
+  async function handleAddTodo() {
+    if (!newTodoText.trim()) return;
+    setIsAdding(true);
+    try {
+      const created = await createTodo(newTodoText);
+      if (!created) throw new Error("Error creating");
+      // Nach dem Anlegen ToDos neu laden
+      const todosRaw = await getTodos();
+      setTodos(todosRaw);
+      setNewTodoText("");
+      setShowAddTodo(false);
+      toast.success("Todo created successfully");
+    } catch (e) {
+      toast.error("Error creating todo");
+    } finally {
+      setIsAdding(false);
+    }
+  }
+
+  async function handleUpdateTodo(id: string) {
+    if (!editingText.trim()) return;
+    setIsAdding(true);
+    try {
+      const success = await updateTodo(id, editingText);
+      if (!success) throw new Error("Error updating");
+      const todosRaw = await getTodos();
+      setTodos(todosRaw);
+      setEditingId(null);
+      setEditingText("");
+      toast.success("Todo updated successfully");
+    } catch (e) {
+      toast.error("Error updating todo");
+    } finally {
+      setIsAdding(false);
+    }
+  }
+
+  async function handleDeleteTodo(id: string) {
+    if (deleteCountdown === id) {
+      // Zweiter Klick - Abbruch
+      if (deleteTimer) clearTimeout(deleteTimer);
+      setDeleteCountdown(null);
+      setDeleteTimer(null);
+      setDeleteSeconds(3);
+      return;
+    }
+
+    // Erster Klick - Countdown starten
+    setDeleteCountdown(id);
+    setDeleteSeconds(3);
+    
+    const timer = setInterval(() => {
+      setDeleteSeconds(prev => {
+        if (prev <= 1) {
+          // Countdown abgelaufen - ToDo löschen
+          clearInterval(timer);
+          handleDeleteTodoFinal(id);
+          return 3;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    setDeleteTimer(timer);
+  }
+
+  async function handleDeleteTodoFinal(id: string) {
+    try {
+      const success = await deleteTodo(id);
+      if (!success) throw new Error("Error deleting");
+      const todosRaw = await getTodos();
+      setTodos(todosRaw);
+      toast.success("Todo deleted successfully");
+    } catch (e) {
+      toast.error("Error deleting todo");
+    } finally {
+      setDeleteCountdown(null);
+      setDeleteTimer(null);
+      setDeleteSeconds(3);
     }
   }
 
@@ -107,19 +196,87 @@ export default function DashboardPage() {
             <div className="w-1/2 h-full flex flex-col flex-1">
               {/* To-Do Bereich */}
               <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-4">To-Dos</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold">To-Dos</h2>
+                  <button
+                    className="p-2 rounded hover:bg-accent transition"
+                    aria-label="To-Do hinzufügen"
+                    onClick={() => setShowAddTodo(true)}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
                 <div className="space-y-3">
+                  {showAddTodo && (
+                    <Card className="shadow-sm border border-gray-200">
+                      <CardContent className="flex items-center justify-between py-1 px-2 min-h-0 h-8 gap-2">
+                        <Input
+                          value={newTodoText}
+                          onChange={e => setNewTodoText(e.target.value)}
+                          placeholder="New todo..."
+                          className="flex-1"
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddTodo(); }}
+                          disabled={isAdding}
+                          autoFocus
+                        />
+                        <button
+                          className="ml-2 text-green-600 hover:text-green-800 disabled:opacity-50"
+                          aria-label="Speichern"
+                          onClick={handleAddTodo}
+                          disabled={isAdding || !newTodoText.trim()}
+                        >
+                          <Check className="w-5 h-5" />
+                        </button>
+                      </CardContent>
+                    </Card>
+                  )}
                   {todos.map(todo => (
                     <Card key={todo.id} className="shadow-sm border border-gray-200">
-                      <CardContent className="flex items-center justify-between py-1 px-2 min-h-0 h-8">
-                        <span className={todo.done ? "line-through text-muted-foreground" : ""}>{todo.text}</span>
-                        <button onClick={() => toggleTodo(todo.id)} className="ml-2" aria-label="Abhaken">
-                          {todo.done ? (
-                            <CheckCircle className="text-green-500 w-5 h-5" />
-                          ) : (
-                            <Circle className="text-gray-400 w-5 h-5" />
-                          )}
-                        </button>
+                      <CardContent className="flex items-center justify-between py-1 px-2 min-h-0 h-8 gap-2">
+                        {editingId === todo.id ? (
+                          <>
+                            <Input
+                              value={editingText}
+                              onChange={e => setEditingText(e.target.value)}
+                              className="flex-1"
+                              onKeyDown={e => { if (e.key === 'Enter') handleUpdateTodo(todo.id); }}
+                              autoFocus
+                              disabled={isAdding}
+                            />
+                            <button
+                              className="ml-2 text-green-600 hover:text-green-800 disabled:opacity-50"
+                              aria-label="Speichern"
+                              onClick={() => handleUpdateTodo(todo.id)}
+                              disabled={isAdding || !editingText.trim()}
+                            >
+                              <Check className="w-5 h-5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span
+                            className="flex-1 cursor-pointer"
+                            onClick={() => { setEditingId(todo.id); setEditingText(todo.text); }}
+                          >
+                            {todo.text}
+                          </span>
+                        )}
+                        {editingId !== todo.id && (
+                          <button
+                            className={`ml-4 p-1 rounded-full transition ${
+                              deleteCountdown === todo.id 
+                                ? 'bg-red-500 text-white' 
+                                : 'text-muted-foreground hover:text-red-500 hover:bg-red-50'
+                            }`}
+                            aria-label="Löschen"
+                            onClick={() => handleDeleteTodo(todo.id)}
+                          >
+                            {deleteCountdown === todo.id ? (
+                              <span className="text-xs font-bold">{deleteSeconds}s</span>
+                            ) : (
+                              <Trash2 className="w-8 h-8" />
+                            )}
+                          </button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -146,7 +303,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <button
-                          className="ml-4"
+                          className="ml-4 text-muted-foreground hover:text-primary transition"
                           aria-label="Algorithmus starten"
                           onClick={async () => {
                             setAlgoDialogOpen(true);
