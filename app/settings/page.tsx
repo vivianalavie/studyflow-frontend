@@ -27,13 +27,18 @@ const weekdays = [
   { value: "sunday", label: "Sunday" },
 ]
 
-const studyDurationOptions = [
-  { value: 30, label: "30 minutes" },
-  { value: 60, label: "1 hour" },
-  { value: 90, label: "1.5 hours" },
-  { value: 120, label: "2 hours" },
-  { value: 180, label: "3 hours" },
-]
+const generateTimeOptions = () => {
+  const options = []
+  for (let i = 0.5; i <= 6; i += 0.5) {
+    options.push({
+      value: i.toString(),
+      label: i === 1 ? "1 hour" : `${i} hours`
+    })
+  }
+  return options
+}
+
+const studyDurationOptions = generateTimeOptions();
 
 export default function SettingsPage() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -192,10 +197,10 @@ export default function SettingsPage() {
                     <div>
                       <Label htmlFor="maxStudyDuration" className="mb-2 block">Maximum study session duration</Label>
                       <Select
-                        value={formData.maxStudyDuration?.toString() || ""}
+                        value={formData.maxStudyDuration ? (formData.maxStudyDuration / 60).toString() : ""}
                         onValueChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          maxStudyDuration: parseInt(value) 
+                          maxStudyDuration: Math.round(parseFloat(value) * 60) // in Minuten speichern
                         }))}
                       >
                         <SelectTrigger className="mt-2">
@@ -203,7 +208,7 @@ export default function SettingsPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {studyDurationOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value.toString()}>
+                            <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
                           ))}
