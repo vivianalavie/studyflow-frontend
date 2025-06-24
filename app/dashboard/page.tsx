@@ -130,7 +130,7 @@ export default function DashboardPage() {
                 <h2 className="text-2xl font-bold mb-4">Algorithm</h2>
                 <div className="space-y-3">
                   {assignments.map(assignment => (
-                    <Card key={assignment.id} className="shadow-sm border border-gray-200">
+                    <Card key={assignment.id} className="shadow-sm border">
                       <CardContent className="flex items-center justify-between py-2 px-3 min-h-0 h-12">
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-base">{assignment.title}</span>
