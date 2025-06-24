@@ -164,7 +164,7 @@ export default function DashboardPage() {
                             }
                           }}
                         >
-                          <PlayCircle className="w-8 h-8 text-primary rounded-full transition" />
+                          <PlayCircle className="w-8 h-8 rounded-full transition" strokeWidth={1.5} />
                         </button>
                       </CardContent>
                     </Card>
