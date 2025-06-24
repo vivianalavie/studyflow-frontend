@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Clock, User, Calendar, Save, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { getUserPreferences, updateUserPreferences, UserPreferences } from "@/app/api/preferences"
+import { useAuth } from "@clerk/nextjs"
 
 const weekdays = [
   { value: "monday", label: "Monday" },
@@ -35,14 +36,16 @@ const studyDurationOptions = [
 ]
 
 export default function SettingsPage() {
+  const { isLoaded, isSignedIn } = useAuth();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState<Partial<UserPreferences>>({})
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
     loadPreferences()
-  }, [])
+  }, [isLoaded, isSignedIn])
 
   const loadPreferences = async () => {
     try {
@@ -160,9 +163,10 @@ export default function SettingsPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="username">Username</Label>
+                      <Label htmlFor="username" className="mb-2 block">Username</Label>
                       <Input
                         id="username"
+                        className="mt-2"
                         value={formData.username || ""}
                         onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
                         placeholder="Your name"
@@ -186,7 +190,7 @@ export default function SettingsPage() {
                 <CardContent>
                   <div className="space-y-6">
                     <div>
-                      <Label htmlFor="maxStudyDuration">Maximum study session duration</Label>
+                      <Label htmlFor="maxStudyDuration" className="mb-2 block">Maximum study session duration</Label>
                       <Select
                         value={formData.maxStudyDuration?.toString() || ""}
                         onValueChange={(value) => setFormData(prev => ({ 
@@ -194,7 +198,7 @@ export default function SettingsPage() {
                           maxStudyDuration: parseInt(value) 
                         }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="mt-2">
                           <SelectValue placeholder="Select a duration" />
                         </SelectTrigger>
                         <SelectContent>
@@ -209,10 +213,11 @@ export default function SettingsPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="startLearningTime">Earliest study time</Label>
+                        <Label htmlFor="startLearningTime" className="mb-2 block">Earliest study time</Label>
                         <Input
                           id="startLearningTime"
                           type="time"
+                          className="mt-2"
                           value={formData.startLearningTime || ""}
                           onChange={(e) => setFormData(prev => ({ 
                             ...prev, 
@@ -221,10 +226,11 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="endLearningTime">Latest study time</Label>
+                        <Label htmlFor="endLearningTime" className="mb-2 block">Latest study time</Label>
                         <Input
                           id="endLearningTime"
                           type="time"
+                          className="mt-2"
                           value={formData.endLearningTime || ""}
                           onChange={(e) => setFormData(prev => ({ 
                             ...prev, 
