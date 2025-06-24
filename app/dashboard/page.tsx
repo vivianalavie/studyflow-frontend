@@ -19,6 +19,7 @@ import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { createTodo, getTodos, updateTodo, deleteTodo, ToDo } from "@/app/api/todos"
+import { Button } from "@/components/ui/button"
 
 // Mapping von Farbnamen zu Tailwind-Klassen für die Badge-Umrandung
 const borderColorClassMap: Record<string, string> = {
@@ -157,7 +158,7 @@ export default function DashboardPage() {
             isDeletingRef.current = true;
             handleDeleteTodoFinal(id);
           }
-          return 3;
+          return prev;
         }
         return prev - 1;
       });
@@ -205,13 +206,12 @@ export default function DashboardPage() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold">To-Dos</h2>
-                  <button
-                    className="p-2 rounded hover:bg-accent transition"
-                    aria-label="To-Do hinzufügen"
+                  <Button
                     onClick={() => setShowAddTodo(true)}
                   >
-                    <Plus className="w-5 h-5" />
-                  </button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add
+                  </Button>
                 </div>
                 <div className="space-y-3">
                   {showAddTodo && (
