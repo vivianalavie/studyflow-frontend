@@ -33,11 +33,6 @@ const menuItems = [
     icon: Calendar,
   },
   {
-    title: "Monthly View",
-    url: "/calendar/monthly",
-    icon: CalendarDays,
-  },
-  {
     title: "Courses & Assignments",
     url: "/courses",
     icon: BookOpen,
