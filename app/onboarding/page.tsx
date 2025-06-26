@@ -35,10 +35,10 @@ const generateTimeOptions = () => {
 }
 
 const studyPreferenceOptions = [
-  { value: "morning", label: "Morning", icon: Sun },
-  { value: "afternoon", label: "Afternoon", icon: CloudSun },
-  { value: "evening", label: "Evening", icon: CloudMoon },
-  { value: "night", label: "Night", icon: Moon },
+  { value: "MORNING", label: "Morning", icon: Sun },
+  { value: "AFTERNOON", label: "Afternoon", icon: CloudSun },
+  { value: "EVENING", label: "Evening", icon: CloudMoon },
+  { value: "NIGHT", label: "Night", icon: Moon },
 ];
 
 const questions = [
