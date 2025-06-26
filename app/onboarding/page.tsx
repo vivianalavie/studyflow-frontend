@@ -102,7 +102,8 @@ export default function OnboardingPage() {
         const token = await window.Clerk?.session?.getToken()
         if (!token) return
 
-        const response = await fetch(`http://localhost:8080/api/users/exists`, {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+        const response = await fetch(`${API_BASE_URL}/api/users/exists`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -166,6 +167,7 @@ export default function OnboardingPage() {
         return
       }
   
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
       const userData = {
         username: answers[1],
         maxStudyDuration: parseFloat(answers[2]) * 60,
@@ -176,7 +178,7 @@ export default function OnboardingPage() {
   
       console.log("📦 Daten, die gesendet werden:", userData)
   
-      const response = await fetch(`http://localhost:8080/api/users?clerkUserId=${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users?clerkUserId=${userId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,14 +191,45 @@ export default function OnboardingPage() {
   
       if (!response.ok) {
         const errText = await response.text()
-        console.error("❌ Fehler-Response vom Backend:", errText)
-        throw new Error("Fehler beim Speichern")
+        console.error("❌ Error response from backend:", errText)
+        toast.error("Error saving your data.")
+        throw new Error("Error saving user data")
       }
-  
+
+      // Study Preferences nach erfolgreichem User-POST speichern
+      if (answers[3]?.pref1 && answers[3]?.pref2) {
+        const studyPreferences = [
+          {
+            preferenceType: answers[3].pref1,
+            priority: 1
+          },
+          {
+            preferenceType: answers[3].pref2,
+            priority: 2
+          }
+        ];
+        for (const pref of studyPreferences) {
+          const prefResponse = await fetch(`${API_BASE_URL}/api/user-study-preferences/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(pref),
+          });
+          if (!prefResponse.ok) {
+            const errText = await prefResponse.text();
+            console.error('❌ Error saving study preferences:', errText);
+            toast.error('Error saving your study preferences.');
+            throw new Error('Error saving study preferences');
+          }
+        }
+      }
+
       router.push("/dashboard")
     } catch (err) {
-      console.error("🧨 Ausnahme in handleSubmit:", err)
-      toast.error("Fehler beim Speichern deiner Daten.")
+      console.error("🧨 Exception in handleSubmit:", err)
+      toast.error("An error occurred while saving your data.")
     } finally {
       setIsLoading(false)
     }
