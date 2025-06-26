@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Clock, User, Calendar, Save, Loader2 } from "lucide-react"
+import { Clock, User, Calendar, Save, Loader2, BookOpen, Sun, Moon, CloudSun, CloudMoon } from "lucide-react"
 import { toast } from "sonner"
 import { getUserPreferences, updateUserPreferences, UserPreferences } from "@/app/api/preferences"
 import { useAuth } from "@clerk/nextjs"
@@ -40,16 +40,52 @@ const generateTimeOptions = () => {
 
 const studyDurationOptions = generateTimeOptions();
 
+const studyPreferenceOptions = [
+  { value: "morning", label: "Morning", icon: Sun },
+  { value: "afternoon", label: "Afternoon", icon: CloudSun },
+  { value: "evening", label: "Evening", icon: CloudMoon },
+  { value: "night", label: "Night", icon: Moon },
+];
+
 export default function SettingsPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState<Partial<UserPreferences>>({})
+  const [studyPreferences, setStudyPreferences] = useState([
+    { preferenceType: "", priority: 1 },
+    { preferenceType: "", priority: 2 },
+  ]);
+  const [loadingStudyPrefs, setLoadingStudyPrefs] = useState(true);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     loadPreferences()
+    const fetchStudyPrefs = async () => {
+      setLoadingStudyPrefs(true);
+      try {
+        const token = await window.Clerk?.session?.getToken();
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+        const res = await fetch(`${API_BASE_URL}/api/user-study-preferences/my`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const prefs = await res.json();
+          if (prefs.length === 2) {
+            setStudyPreferences([
+              { preferenceType: prefs[0].preferenceType, priority: 1 },
+              { preferenceType: prefs[1].preferenceType, priority: 2 },
+            ]);
+          }
+        }
+      } catch (e) {
+        toast.error("Failed to load study preferences");
+      } finally {
+        setLoadingStudyPrefs(false);
+      }
+    };
+    fetchStudyPrefs();
   }, [isLoaded, isSignedIn])
 
   const loadPreferences = async () => {
@@ -72,11 +108,32 @@ export default function SettingsPage() {
       toast.error("Please fill out all required fields")
       return
     }
-
+    if (!studyPreferences[0].preferenceType || !studyPreferences[1].preferenceType) {
+      toast.error("Please select both study preferences.");
+      return;
+    }
+    if (studyPreferences[0].preferenceType === studyPreferences[1].preferenceType) {
+      toast.error("Please choose two preferences that differ!");
+      return;
+    }
     try {
       setSaving(true)
       const success = await updateUserPreferences(formData as UserPreferences)
-      if (success) {
+      // Study Preferences speichern
+      const token = await window.Clerk?.session?.getToken();
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const res = await fetch(`${API_BASE_URL}/api/user-study-preferences/udpate`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify([
+          { preferenceType: studyPreferences[0].preferenceType, priority: 1 },
+          { preferenceType: studyPreferences[1].preferenceType, priority: 2 },
+        ]),
+      });
+      if (success && res.ok) {
         toast.success("Preferences saved successfully")
         await loadPreferences() // Reload to get updated data
       } else {
@@ -100,6 +157,49 @@ export default function SettingsPage() {
       blackoutWeekdays: newBlackoutDays
     }))
   }
+
+  const handleStudyPrefChange = (priority: 1 | 2, value: string) => {
+    setStudyPreferences(prev => {
+      const other = prev[priority === 1 ? 1 : 0].preferenceType;
+      if (other === value) {
+        toast.error("Please choose two preferences that differ!");
+        return prev;
+      }
+      return prev.map((p, i) => i === priority - 1 ? { ...p, preferenceType: value } : p);
+    });
+  };
+
+  const handleSaveStudyPrefs = async () => {
+    if (!studyPreferences[0].preferenceType || !studyPreferences[1].preferenceType) {
+      toast.error("Please select both study preferences.");
+      return;
+    }
+    try {
+      setLoadingStudyPrefs(true);
+      const token = await window.Clerk?.session?.getToken();
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const res = await fetch(`${API_BASE_URL}/api/user-study-preferences/udpate`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify([
+          { preferenceType: studyPreferences[0].preferenceType, priority: 1 },
+          { preferenceType: studyPreferences[1].preferenceType, priority: 2 },
+        ]),
+      });
+      if (res.ok) {
+        toast.success("Study preferences saved successfully");
+      } else {
+        toast.error("Failed to save study preferences");
+      }
+    } catch (e) {
+      toast.error("Failed to save study preferences");
+    } finally {
+      setLoadingStudyPrefs(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -273,6 +373,65 @@ export default function SettingsPage() {
                         </Label>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Study Preferences */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5" />
+                    Study Preferences
+                  </CardTitle>
+                  <CardDescription>
+                    Select your two preferred study times.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Preference 1</Label>
+                      <Select
+                        value={studyPreferences[0].preferenceType}
+                        onValueChange={v => handleStudyPrefChange(1, v)}
+                      >
+                        <SelectTrigger className="w-full mt-2">
+                          <SelectValue placeholder="Select your first preference" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {studyPreferenceOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <span className="flex items-center gap-2">
+                                <opt.icon className="h-4 w-4" />
+                                {opt.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Preference 2</Label>
+                      <Select
+                        value={studyPreferences[1].preferenceType}
+                        onValueChange={v => handleStudyPrefChange(2, v)}
+                      >
+                        <SelectTrigger className="w-full mt-2">
+                          <SelectValue placeholder="Select your second preference" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {studyPreferenceOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              <span className="flex items-center gap-2">
+                                <opt.icon className="h-4 w-4" />
+                                {opt.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
-import { BookOpen, ArrowRight, ArrowLeft } from "lucide-react"
+import { BookOpen, ArrowRight, ArrowLeft, Sun, Moon, CloudSun, CloudMoon } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 
@@ -34,6 +34,13 @@ const generateTimeOptions = () => {
   return options
 }
 
+const studyPreferenceOptions = [
+  { value: "morning", label: "Morning", icon: Sun },
+  { value: "afternoon", label: "Afternoon", icon: CloudSun },
+  { value: "evening", label: "Evening", icon: CloudMoon },
+  { value: "night", label: "Night", icon: Moon },
+];
+
 const questions = [
   {
     id: 1,
@@ -51,12 +58,7 @@ const questions = [
     id: 3,
     question: "When do you prefer studying?",
     type: "study-preferences",
-    options: [
-      { value: "morning", label: "Morning" },
-      { value: "afternoon", label: "Afternoon" },
-      { value: "evening", label: "Evening" },
-      { value: "night", label: "Night" },
-    ],
+    options: studyPreferenceOptions,
   },
   {
     id: 4,
@@ -331,9 +333,12 @@ export default function OnboardingPage() {
                         <SelectValue placeholder="Select your first preference" />
                       </SelectTrigger>
                       <SelectContent>
-                        {question.options?.map((option) => (
+                        {(question.options as { value: string; label: string; icon: any }[]).map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                            <span className="flex items-center gap-2">
+                              <option.icon className="h-4 w-4" />
+                              {option.label}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -357,9 +362,12 @@ export default function OnboardingPage() {
                         <SelectValue placeholder="Select your second preference" />
                       </SelectTrigger>
                       <SelectContent>
-                        {question.options?.map((option) => (
+                        {(question.options as { value: string; label: string; icon: any }[]).map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                            <span className="flex items-center gap-2">
+                              <option.icon className="h-4 w-4" />
+                              {option.label}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
