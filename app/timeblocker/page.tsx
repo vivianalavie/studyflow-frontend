@@ -18,19 +18,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useState, useEffect } from "react"
-import type { Timeblocker, Occurrence } from "@/types/timeblocker"
+import type { Timeblocker } from "@/types/timeblocker"
 import { getTimeblockers, createTimeblocker, updateTimeblocker, deleteTimeblocker } from "@/app/api/timeblocker"
 import { toast } from "sonner"
 import { useAuth } from "@clerk/nextjs"
-
-const occurrenceOptions = [
-  { value: "ONCE", label: "Once" },
-  { value: "DAILY", label: "Daily" },
-  { value: "WEEKLY", label: "Weekly" },
-  { value: "MONTHLY", label: "Monthly" },
-]
 
 // Helper function for LocalDateTime string (no timezone, no seconds needed)
 function toLocalDateTimeString(input: string | undefined): string {
@@ -223,19 +215,6 @@ export default function TimeblockerPage() {
                         <Label htmlFor="tb-end">End</Label>
                         <Input id="tb-end" type="datetime-local" value={newTimeblocker.endDate} onChange={e => setNewTimeblocker(prev => ({ ...prev, endDate: e.target.value }))} className="mt-2" />
                       </div>
-                      <div>
-                        <Label htmlFor="tb-occurrence">Occurrence</Label>
-                        <Select value={newTimeblocker.occurrence} onValueChange={val => setNewTimeblocker(prev => ({ ...prev, occurrence: val as Occurrence }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {occurrenceOptions.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
                       <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
@@ -278,9 +257,6 @@ export default function TimeblockerPage() {
                             hour: '2-digit',
                             minute: '2-digit'
                           }) : "-"}
-                        </div>
-                        <div>
-                          {occurrenceOptions.find(o => o.value === tb.occurrence)?.label}
                         </div>
                       </div>
                     </CardContent>
@@ -333,19 +309,6 @@ export default function TimeblockerPage() {
             <div>
               <Label htmlFor="edit-tb-end">End</Label>
               <Input id="edit-tb-end" type="datetime-local" value={(editTimeblocker?.endDate ?? "") + ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, endDate: e.target.value ?? "" } : null)} className="mt-2" />
-            </div>
-            <div>
-              <Label htmlFor="edit-tb-occurrence">Occurrence</Label>
-              <Select value={editTimeblocker?.occurrence || "ONCE"} onValueChange={val => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, occurrence: val as Occurrence } : null)}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {occurrenceOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
