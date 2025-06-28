@@ -92,7 +92,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center justify-between p-4">
-          <div className="text-xs text-muted-foreground">© 2024 StudyFlow</div>
+          <div className="text-xs text-muted-foreground">© 2025 System Developement</div>
           <Button
             variant="ghost"
             size="icon"

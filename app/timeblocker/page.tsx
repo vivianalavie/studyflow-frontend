@@ -18,24 +18,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useState, useEffect } from "react"
-import type { Timeblocker, Occurrence } from "@/types/timeblocker"
+import type { Timeblocker } from "@/types/timeblocker"
 import { getTimeblockers, createTimeblocker, updateTimeblocker, deleteTimeblocker } from "@/app/api/timeblocker"
 import { toast } from "sonner"
 import { useAuth } from "@clerk/nextjs"
 
-const occurrenceOptions = [
-  { value: "ONCE", label: "Once" },
-  { value: "DAILY", label: "Daily" },
-  { value: "WEEKLY", label: "Weekly" },
-  { value: "MONTHLY", label: "Monthly" },
-]
-
-// Hilfsfunktion für LocalDateTime-String (keine Zeitzone, keine Sekunden nötig)
+// Helper function for LocalDateTime string (no timezone, no seconds needed)
 function toLocalDateTimeString(input: string | undefined): string {
   if (!input) return "";
-  // Entferne Zeitzoneninformationen und Sekunden
+  // Remove timezone information and seconds
   return input.split('.')[0].replace('Z', '');
 }
 
@@ -56,6 +48,7 @@ export default function TimeblockerPage() {
   const [editTimeblocker, setEditTimeblocker] = useState<Omit<Timeblocker, 'id' | 'userId'> | null>(null)
   const { isLoaded, isSignedIn } = useAuth();
   const [dateError, setDateError] = useState<string | null>(null)
+  const [editDateError, setEditDateError] = useState<string | null>(null)
   const [calendarKey, setCalendarKey] = useState(0)
   const [scrollToEventRequest, setScrollToEventRequest] = useState<{ name: string, startTime: string } | null>(null);
 
@@ -66,19 +59,19 @@ export default function TimeblockerPage() {
         const data = await getTimeblockers();
         setTimeblockers(data);
       } catch (e) {
-        // Fehlerbehandlung optional
+        // Error handling optional
       }
     }
     fetchTimeblockers();
   }, [isLoaded, isSignedIn]);
 
-  // Validierung für Start- und Enddatum
+  // Validation for start and end date
   useEffect(() => {
     if (newTimeblocker.startDate && newTimeblocker.endDate) {
       const start = new Date(newTimeblocker.startDate)
       const end = new Date(newTimeblocker.endDate)
       if (end < start) {
-        setDateError('End date cannot be before start date.')
+        setDateError('Das Enddatum kann nicht vor dem Startdatum liegen.')
       } else {
         setDateError(null)
       }
@@ -87,12 +80,34 @@ export default function TimeblockerPage() {
     }
   }, [newTimeblocker.startDate, newTimeblocker.endDate])
 
-  // Validierung für Pflichtfelder und Datum
+  // Validation for edit dialog start and end date
+  useEffect(() => {
+    if (editTimeblocker?.startDate && editTimeblocker?.endDate) {
+      const start = new Date(editTimeblocker.startDate)
+      const end = new Date(editTimeblocker.endDate)
+      if (end < start) {
+        setEditDateError('Das Enddatum kann nicht vor dem Startdatum liegen.')
+      } else {
+        setEditDateError(null)
+      }
+    } else {
+      setEditDateError(null)
+    }
+  }, [editTimeblocker?.startDate, editTimeblocker?.endDate])
+
+  // Validation for required fields and date
   const isSaveDisabled =
     !newTimeblocker.name ||
     !newTimeblocker.startDate ||
     !newTimeblocker.endDate ||
     !!dateError;
+
+  // Validation for edit dialog
+  const isEditSaveDisabled =
+    !editTimeblocker?.name ||
+    !editTimeblocker?.startDate ||
+    !editTimeblocker?.endDate ||
+    !!editDateError;
 
   async function handleAddTimeblocker() {
     try {
@@ -157,12 +172,12 @@ export default function TimeblockerPage() {
   }
 
   async function refreshTimeblockersAndCalendar() {
-    // Timeblockers neu laden
+    // Reload timeblockers
     try {
       const data = await getTimeblockers();
       setTimeblockers(data);
     } catch (e) {}
-    // Kalender neu rendern (indem wir den Key ändern)
+    // Re-render calendar (by changing the key)
     setCalendarKey(prev => prev + 1)
   }
 
@@ -184,8 +199,8 @@ export default function TimeblockerPage() {
         <div className="flex flex-1 flex-col gap-4 p-4 h-full">
           <div className="flex flex-row gap-4 h-full flex-1">
             <div className="w-1/2 h-full flex flex-col flex-1">
-              {/* Kalender für zwei Tage */}
-              <WeeklyCalendar key={calendarKey} scrollToEventRequest={scrollToEventRequest ?? undefined} />
+              {/* Calendar for two days */}
+              <WeeklyCalendar refreshKey={calendarKey} scrollToEventRequest={scrollToEventRequest ?? undefined} courses={[]} />
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">
               <div className="flex justify-between items-center mb-4">
@@ -223,23 +238,15 @@ export default function TimeblockerPage() {
                         <Label htmlFor="tb-end">End</Label>
                         <Input id="tb-end" type="datetime-local" value={newTimeblocker.endDate} onChange={e => setNewTimeblocker(prev => ({ ...prev, endDate: e.target.value }))} className="mt-2" />
                       </div>
-                      <div>
-                        <Label htmlFor="tb-occurrence">Occurrence</Label>
-                        <Select value={newTimeblocker.occurrence} onValueChange={val => setNewTimeblocker(prev => ({ ...prev, occurrence: val as Occurrence }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {occurrenceOptions.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
+                    {dateError && (
+                      <div className="text-red-600 text-sm mt-2">
+                        {dateError}
+                      </div>
+                    )}
                     <div className="flex justify-end gap-2 mt-6">
                       <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
-                      <Button onClick={handleAddTimeblocker}>Add</Button>
+                      <Button onClick={handleAddTimeblocker} disabled={isSaveDisabled}>Add</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -278,9 +285,6 @@ export default function TimeblockerPage() {
                             hour: '2-digit',
                             minute: '2-digit'
                           }) : "-"}
-                        </div>
-                        <div>
-                          {occurrenceOptions.find(o => o.value === tb.occurrence)?.label}
                         </div>
                       </div>
                     </CardContent>
@@ -334,23 +338,15 @@ export default function TimeblockerPage() {
               <Label htmlFor="edit-tb-end">End</Label>
               <Input id="edit-tb-end" type="datetime-local" value={(editTimeblocker?.endDate ?? "") + ""} onChange={e => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, endDate: e.target.value ?? "" } : null)} className="mt-2" />
             </div>
-            <div>
-              <Label htmlFor="edit-tb-occurrence">Occurrence</Label>
-              <Select value={editTimeblocker?.occurrence || "ONCE"} onValueChange={val => setEditTimeblocker(editTimeblocker ? { ...editTimeblocker, occurrence: val as Occurrence } : null)}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {occurrenceOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
+          {editDateError && (
+            <div className="text-red-600 text-sm mt-2">
+              {editDateError}
+            </div>
+          )}
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button onClick={handleUpdateTimeblocker}>Update</Button>
+            <Button onClick={handleUpdateTimeblocker} disabled={isEditSaveDisabled}>Update</Button>
           </div>
         </DialogContent>
       </Dialog>

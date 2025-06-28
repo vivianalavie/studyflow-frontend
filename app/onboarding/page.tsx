@@ -22,7 +22,7 @@ declare global {
 }
 
 
-// Hilfsfunktion zum Generieren der Zeitoptionen
+// Helper function for generating time options
 const generateTimeOptions = () => {
   const options = []
   for (let i = 0.5; i <= 6; i += 0.5) {
@@ -112,7 +112,7 @@ export default function OnboardingPage() {
         })
 
         if (!response.ok) {
-          throw new Error('Fehler beim Prüfen des Benutzerstatus')
+          throw new Error('Error checking user status')
         }
 
         const userExists = await response.json()
@@ -120,7 +120,7 @@ export default function OnboardingPage() {
           router.push('/dashboard')
         }
       } catch (err) {
-        console.error('Fehler beim Prüfen des Benutzerstatus:', err)
+        console.error('Error checking user status:', err)
       }
     }
 
@@ -156,7 +156,7 @@ export default function OnboardingPage() {
       console.log("⏳ Start handleSubmit")
   
       if (!isLoaded || !isSignedIn || !userId) {
-        console.warn("🚫 Noch nicht geladen oder nicht eingeloggt", { isLoaded, isSignedIn, userId })
+        console.warn("Not yet loaded or not logged in", { isLoaded, isSignedIn, userId })
         return
       }
   
@@ -165,7 +165,7 @@ export default function OnboardingPage() {
       console.log("🔑 JWT Token:", token)
   
       if (!token) {
-        toast.error("❌ Kein Token erhalten – wahrscheinlich nicht eingeloggt.")
+        toast.error("No token received – probably not logged in.")
         return
       }
   
@@ -178,7 +178,7 @@ export default function OnboardingPage() {
         blackoutWeekdays: answers[6] || [],
       }
   
-      console.log("📦 Daten, die gesendet werden:", userData)
+      console.log("Data to be sent:", userData)
   
       const response = await fetch(`${API_BASE_URL}/api/users?clerkUserId=${userId}`, {
         method: 'POST',
@@ -189,7 +189,7 @@ export default function OnboardingPage() {
         body: JSON.stringify(userData),
       })
   
-      console.log("📡 Antwort vom Backend:", response.status)
+      console.log("Response from backend:", response.status)
   
       if (!response.ok) {
         const errText = await response.text()
@@ -198,7 +198,7 @@ export default function OnboardingPage() {
         throw new Error("Error saving user data")
       }
 
-      // Study Preferences nach erfolgreichem User-POST speichern
+      // Save Study Preferences after successful User-POST
       if (answers[3]?.pref1 && answers[3]?.pref2) {
         const studyPreferences = [
           {

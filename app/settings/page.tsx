@@ -300,7 +300,7 @@ export default function SettingsPage() {
                         value={formData.maxStudyDuration ? (formData.maxStudyDuration / 60).toString() : ""}
                         onValueChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          maxStudyDuration: Math.round(parseFloat(value) * 60) // in Minuten speichern
+                          maxStudyDuration: Math.round(parseFloat(value) * 60) // save in minutes
                         }))}
                       >
                         <SelectTrigger className="mt-2">

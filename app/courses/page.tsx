@@ -101,6 +101,8 @@ export default function CoursesPage() {
   const [editAssignmentId, setEditAssignmentId] = useState<string | null>(null);
   const [assignmentCourseFilter, setAssignmentCourseFilter] = useState<string>("ALL_COURSES");
   const [assignmentDifficultyFilter, setAssignmentDifficultyFilter] = useState<string>("ALL_DIFFICULTIES");
+  const [pointsError, setPointsError] = useState<string | null>(null);
+  const [editPointsError, setEditPointsError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -145,6 +147,34 @@ export default function CoursesPage() {
     }
   }, [isLoaded, isSignedIn, courses])
 
+  // Validation for assignment points
+  useEffect(() => {
+    if (newAssignment.courseId && newAssignment.totalAchievablePoints > 0) {
+      const selectedCourse = courses.find(course => course.id === newAssignment.courseId);
+      if (selectedCourse && newAssignment.totalAchievablePoints > selectedCourse.totalPoints) {
+        setPointsError(`Points cannot exceed the course total points (${selectedCourse.totalPoints})`);
+      } else {
+        setPointsError(null);
+      }
+    } else {
+      setPointsError(null);
+    }
+  }, [newAssignment.courseId, newAssignment.totalAchievablePoints, courses]);
+
+  // Validation for edit assignment points
+  useEffect(() => {
+    if (newAssignment.courseId && newAssignment.totalAchievablePoints > 0) {
+      const selectedCourse = courses.find(course => course.id === newAssignment.courseId);
+      if (selectedCourse && newAssignment.totalAchievablePoints > selectedCourse.totalPoints) {
+        setEditPointsError(`Points cannot exceed the course total points (${selectedCourse.totalPoints})`);
+      } else {
+        setEditPointsError(null);
+      }
+    } else {
+      setEditPointsError(null);
+    }
+  }, [newAssignment.courseId, newAssignment.totalAchievablePoints, courses]);
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "VERY_EASY":
@@ -164,6 +194,12 @@ export default function CoursesPage() {
 
   // Hilfsfunktion zum Vergleichen der Datumswerte
   const isEndDateBeforeStartDate = newCourse.startDate && newCourse.endDate && new Date(newCourse.endDate) < new Date(newCourse.startDate)
+
+  // Validation for assignment creation
+  const isAssignmentSaveDisabled = !newAssignment.courseId || !newAssignment.title || !!pointsError;
+
+  // Validation for assignment editing
+  const isAssignmentEditSaveDisabled = !newAssignment.title || !!editPointsError;
 
   const handleAddCourse = async () => {
     try {
@@ -398,6 +434,7 @@ export default function CoursesPage() {
       });
       toast.success("Assignment created successfully");
       setIsAddingAssignment(false);
+      setPointsError(null);
       setNewAssignment({
         title: "",
         description: "",
@@ -485,6 +522,7 @@ export default function CoursesPage() {
       toast.success("Assignment updated successfully");
       setIsEditingAssignment(false);
       setEditAssignmentId(null);
+      setEditPointsError(null);
       setNewAssignment({
         title: "",
         description: "",
@@ -830,6 +868,13 @@ export default function CoursesPage() {
                           className="mt-2 h-10 text-base"
                         />
                       </div>
+                      {pointsError && (
+                        <div className="col-span-2">
+                          <div className="text-red-600 text-sm mt-2">
+                            {pointsError}
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <Label htmlFor="assignment-difficulty" className="text-base">Difficulty</Label>
                         <Select value={newAssignment.difficulty} onValueChange={value => setNewAssignment({...newAssignment, difficulty: value as Difficulty})}>
@@ -848,10 +893,13 @@ export default function CoursesPage() {
                         </Select>
                       </div>
                       <div className="col-span-2 flex justify-end gap-2 mt-6">
-                        <Button variant="outline" onClick={() => setIsAddingAssignment(false)} className="h-10 px-6">
+                        <Button variant="outline" onClick={() => {
+                          setIsAddingAssignment(false);
+                          setPointsError(null);
+                        }} className="h-10 px-6">
                           Cancel
                         </Button>
-                        <Button className="h-10 px-6 w-auto" disabled={!newAssignment.courseId} onClick={handleAddAssignment}>Add Assignment</Button>
+                        <Button className="h-10 px-6 w-auto" disabled={isAssignmentSaveDisabled} onClick={handleAddAssignment}>Add Assignment</Button>
                       </div>
                     </div>
                   </DialogContent>
@@ -1119,6 +1167,13 @@ export default function CoursesPage() {
                     className="mt-2 h-10 text-base"
                   />
                 </div>
+                {editPointsError && (
+                  <div className="col-span-2">
+                    <div className="text-red-600 text-sm mt-2">
+                      {editPointsError}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="edit-assignment-difficulty" className="text-base">Difficulty</Label>
                   <Select value={newAssignment.difficulty} onValueChange={value => setNewAssignment({...newAssignment, difficulty: value as Difficulty})}>
@@ -1137,10 +1192,13 @@ export default function CoursesPage() {
                   </Select>
                 </div>
                 <div className="col-span-2 flex justify-end gap-2 mt-6">
-                  <Button variant="outline" onClick={() => setIsEditingAssignment(false)} className="h-10 px-6">
+                  <Button variant="outline" onClick={() => {
+                    setIsEditingAssignment(false);
+                    setEditPointsError(null);
+                  }} className="h-10 px-6">
                     Cancel
                   </Button>
-                  <Button className="h-10 px-6 w-auto" onClick={handleUpdateAssignment}>Update Assignment</Button>
+                  <Button className="h-10 px-6 w-auto" disabled={isAssignmentEditSaveDisabled} onClick={handleUpdateAssignment}>Update Assignment</Button>
                 </div>
               </div>
             </DialogContent>

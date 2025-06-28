@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { createTodo, getTodos, updateTodo, deleteTodo, ToDo } from "@/app/api/todos"
 import { Button } from "@/components/ui/button"
 
-// Mapping von Farbnamen zu Tailwind-Klassen für die Badge-Umrandung
+// Mapping from color names to Tailwind classes for badge borders
 const borderColorClassMap: Record<string, string> = {
   blue: "border-blue-500 text-blue-500",
   green: "border-green-500 text-green-500",
@@ -35,10 +35,10 @@ const borderColorClassMap: Record<string, string> = {
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn } = useAuth();
-  // ToDos State mit Backend-Typ
+  // ToDos State with backend type
   const [todos, setTodos] = useState<ToDo[]>([]);
 
-  // Assignments für Algorithm-Bereich
+  // Assignments for algorithm area
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [algoDialogOpen, setAlgoDialogOpen] = useState(false);
@@ -65,7 +65,7 @@ export default function DashboardPage() {
           getTodos()
         ])
         setCourses(coursesRaw)
-        // Mappe courseName, courseColor, courseTotalPoints wie auf der Assignments-Seite
+        // Map courseName, courseColor, courseTotalPoints like on the assignments page
         const assignmentsWithCourseInfo = assignmentsRaw.map(assignment => {
           const course = coursesRaw.find(course => course.id === assignment.courseId)
           return {
@@ -102,7 +102,7 @@ export default function DashboardPage() {
     try {
       const created = await createTodo(newTodoText);
       if (!created) throw new Error("Error creating");
-      // Nach dem Anlegen ToDos neu laden
+      // Reload todos after creation
       const todosRaw = await getTodos();
       setTodos(todosRaw);
       setNewTodoText("");
@@ -135,7 +135,7 @@ export default function DashboardPage() {
 
   async function handleDeleteTodo(id: string) {
     if (deleteCountdown === id) {
-      // Zweiter Klick - Abbruch
+      // Second click - cancel
       if (deleteTimer) clearTimeout(deleteTimer);
       setDeleteCountdown(null);
       setDeleteTimer(null);
@@ -144,7 +144,7 @@ export default function DashboardPage() {
       return;
     }
 
-    // Erster Klick - Countdown starten
+    // First click - start countdown
     setDeleteCountdown(id);
     setDeleteSeconds(3);
     isDeletingRef.current = false;
@@ -152,7 +152,7 @@ export default function DashboardPage() {
     const timer = setInterval(() => {
       setDeleteSeconds(prev => {
         if (prev <= 1) {
-          // Countdown abgelaufen - ToDo löschen
+          // Countdown expired - delete todo
           clearInterval(timer);
           if (!isDeletingRef.current) {
             isDeletingRef.current = true;
@@ -228,7 +228,7 @@ export default function DashboardPage() {
                         />
                         <button
                           className="ml-2 text-green-600 hover:text-green-800 disabled:opacity-50"
-                          aria-label="Speichern"
+                          aria-label="Save"
                           onClick={handleAddTodo}
                           disabled={isAdding || !newTodoText.trim()}
                         >
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                             />
                             <button
                               className="ml-2 text-green-600 hover:text-green-800 disabled:opacity-50"
-                              aria-label="Speichern"
+                              aria-label="Save"
                               onClick={() => handleUpdateTodo(todo.id)}
                               disabled={isAdding || !editingText.trim()}
                             >
@@ -274,7 +274,7 @@ export default function DashboardPage() {
                                 ? 'bg-red-500 text-white' 
                                 : 'text-muted-foreground hover:text-red-500 hover:bg-red-50'
                             }`}
-                            aria-label="Löschen"
+                            aria-label="Delete"
                             onClick={() => handleDeleteTodo(todo.id)}
                           >
                             {deleteCountdown === todo.id ? (
@@ -300,7 +300,7 @@ export default function DashboardPage() {
                           <span className="font-medium text-base">{assignment.title}</span>
                           <div className="flex gap-2 items-center">
                             <Badge variant="outline" className={borderColorClassMap[assignment.courseColor || "blue"]}>
-                              {assignment.courseName ? assignment.courseName : "Kein Kurs"}
+                              {assignment.courseName ? assignment.courseName : "Unknown Course"}
                             </Badge>
                             <Badge className={getDifficultyColor(assignment.difficulty)}>{assignment.difficulty}</Badge>
                             <span className="text-xs text-muted-foreground">
@@ -311,7 +311,7 @@ export default function DashboardPage() {
                         </div>
                         <button
                           className="ml-4 text-muted-foreground hover:text-primary transition"
-                          aria-label="Algorithmus starten"
+                          aria-label="Start algorithm"
                           onClick={async () => {
                             setAlgoDialogOpen(true);
                             setAlgoSuccess(false);
@@ -333,12 +333,12 @@ export default function DashboardPage() {
                       </CardContent>
                     </Card>
                   ))}
-                  {assignments.length === 0 && <div className="text-muted-foreground text-sm">Keine Assignments gefunden.</div>}
+                  {assignments.length === 0 && <div className="text-muted-foreground text-sm">No assignments found.</div>}
                 </div>
               </div>
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">
-              <WeeklyCalendar key={calendarKey} courses={courses} />
+              <WeeklyCalendar refreshKey={calendarKey} courses={courses} />
             </div>
           </div>
         </div>

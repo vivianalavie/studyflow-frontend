@@ -53,6 +53,6 @@ export async function generateScheduleForAssignment(assignmentId: string): Promi
   })
 
   if (!response.ok) {
-    throw new Error('Fehler beim Generieren des Schedulers')
+    throw new Error('Error generating scheduler')
   }
 } 
