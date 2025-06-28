@@ -338,7 +338,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">
-              <WeeklyCalendar key={calendarKey} courses={courses} />
+              <WeeklyCalendar refreshKey={calendarKey} courses={courses} />
             </div>
           </div>
         </div>

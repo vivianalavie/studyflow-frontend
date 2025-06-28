@@ -73,15 +73,22 @@ const colorHexMap: Record<string, string> = {
   teal: "#14b8a6",
 };
 
-export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, courses = [] }: { onlyTwoDays?: boolean, scrollToEventRequest?: { name: string, startTime: string }, courses?: Course[] }) {
+export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, courses = [], refreshKey }: { onlyTwoDays?: boolean, scrollToEventRequest?: { name: string, startTime: string }, courses?: Course[], refreshKey?: number }) {
   const { isLoaded, isSignedIn } = useAuth()
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const scrollRequestRef = useRef<{ name: string, startTime: string } | null>(null);
+  const hasLoadedEvents = useRef(false);
+  const lastRefreshKey = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
+    if (hasLoadedEvents.current && refreshKey === lastRefreshKey.current) return
+    
+    hasLoadedEvents.current = true;
+    lastRefreshKey.current = refreshKey;
+    
     getCalendarEvents()
       .then(data => {
         // Set course color as HEX value for AUTOMATIC events
@@ -99,7 +106,23 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
         console.log("Loaded events:", eventsWithColor)
       })
       .catch(() => setEvents([]))
-  }, [isLoaded, isSignedIn, courses])
+  }, [isLoaded, isSignedIn, refreshKey])
+
+  // Separate effect for courses changes to update colors
+  useEffect(() => {
+    if (events.length > 0 && courses.length > 0) {
+      const eventsWithColor = events.map((event: CalendarEvent) => {
+        if (event.type === "AUTOMATIC" && event.courseId) {
+          const course = courses.find(c => c.id === event.courseId)
+          if (course && course.color) {
+            return { ...event, color: colorHexMap[course.color] || "#3b82f6" }
+          }
+        }
+        return event
+      })
+      setEvents(eventsWithColor)
+    }
+  }, [courses])
 
   useLayoutEffect(() => {
     if (!scrollToEventRequest) return;
