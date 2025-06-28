@@ -32,10 +32,10 @@ const occurrenceOptions = [
   { value: "MONTHLY", label: "Monthly" },
 ]
 
-// Hilfsfunktion für LocalDateTime-String (keine Zeitzone, keine Sekunden nötig)
+// Helper function for LocalDateTime string (no timezone, no seconds needed)
 function toLocalDateTimeString(input: string | undefined): string {
   if (!input) return "";
-  // Entferne Zeitzoneninformationen und Sekunden
+  // Remove timezone information and seconds
   return input.split('.')[0].replace('Z', '');
 }
 
@@ -66,13 +66,13 @@ export default function TimeblockerPage() {
         const data = await getTimeblockers();
         setTimeblockers(data);
       } catch (e) {
-        // Fehlerbehandlung optional
+        // Error handling optional
       }
     }
     fetchTimeblockers();
   }, [isLoaded, isSignedIn]);
 
-  // Validierung für Start- und Enddatum
+  // Validation for start and end date
   useEffect(() => {
     if (newTimeblocker.startDate && newTimeblocker.endDate) {
       const start = new Date(newTimeblocker.startDate)
@@ -87,7 +87,7 @@ export default function TimeblockerPage() {
     }
   }, [newTimeblocker.startDate, newTimeblocker.endDate])
 
-  // Validierung für Pflichtfelder und Datum
+  // Validation for required fields and date
   const isSaveDisabled =
     !newTimeblocker.name ||
     !newTimeblocker.startDate ||
@@ -157,12 +157,12 @@ export default function TimeblockerPage() {
   }
 
   async function refreshTimeblockersAndCalendar() {
-    // Timeblockers neu laden
+    // Reload timeblockers
     try {
       const data = await getTimeblockers();
       setTimeblockers(data);
     } catch (e) {}
-    // Kalender neu rendern (indem wir den Key ändern)
+    // Re-render calendar (by changing the key)
     setCalendarKey(prev => prev + 1)
   }
 
@@ -184,7 +184,7 @@ export default function TimeblockerPage() {
         <div className="flex flex-1 flex-col gap-4 p-4 h-full">
           <div className="flex flex-row gap-4 h-full flex-1">
             <div className="w-1/2 h-full flex flex-col flex-1">
-              {/* Kalender für zwei Tage */}
+              {/* Calendar for two days */}
               <WeeklyCalendar key={calendarKey} scrollToEventRequest={scrollToEventRequest ?? undefined} />
             </div>
             <div className="w-1/2 h-full flex flex-col flex-1">

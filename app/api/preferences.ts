@@ -12,7 +12,7 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
   try {
     const token = await window.Clerk?.session?.getToken();
     if (!token) {
-      throw new Error('Nicht eingeloggt');
+      throw new Error('Not logged in');
     }
 
     const response = await fetch(`${API_BASE_URL}/api/users/preferences`, {
@@ -22,12 +22,12 @@ export async function getUserPreferences(): Promise<UserPreferences | null> {
     });
 
     if (!response.ok) {
-      throw new Error('Fehler beim Laden der Präferenzen');
+      throw new Error('Error loading preferences');
     }
 
     return response.json();
   } catch (error) {
-    console.error('Fehler beim Laden der Benutzerpräferenzen:', error);
+    console.error('Error loading user preferences:', error);
     return null;
   }
 }
@@ -36,7 +36,7 @@ export async function updateUserPreferences(preferences: UserPreferences): Promi
   try {
     const token = await window.Clerk?.session?.getToken();
     if (!token) {
-      throw new Error('Nicht eingeloggt');
+      throw new Error('Not logged in');
     }
 
     const response = await fetch(`${API_BASE_URL}/api/users/preferences`, {
@@ -49,12 +49,12 @@ export async function updateUserPreferences(preferences: UserPreferences): Promi
     });
 
     if (!response.ok) {
-      throw new Error('Fehler beim Aktualisieren der Präferenzen');
+      throw new Error('Error updating preferences');
     }
 
     return true;
   } catch (error) {
-    console.error('Fehler beim Aktualisieren der Benutzerpräferenzen:', error);
+    console.error('Error updating user preferences:', error);
     return false;
   }
 } 

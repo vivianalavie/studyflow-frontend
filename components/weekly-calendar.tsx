@@ -48,7 +48,7 @@ async function getCalendarEvents(): Promise<CalendarEvent[]> {
   return response.json();
 }
 
-// Hilfsfunktion: HEX zu RGBA mit Alpha
+// Helper function: HEX to RGBA with alpha
 function hexToRgba(hex: string, alpha: number) {
   let c = hex.replace('#', '');
   if (c.length === 3) {
@@ -61,7 +61,7 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-// Mapping von Farbnamen zu HEX-Farben (wie auf der Courses-Seite)
+// Mapping from color names to HEX colors (like on the courses page)
 const colorHexMap: Record<string, string> = {
   blue: "#3b82f6",
   green: "#22c55e",
@@ -84,19 +84,19 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
     if (!isLoaded || !isSignedIn) return
     getCalendarEvents()
       .then(data => {
-        // Setze für AUTOMATIC-Events die Kursfarbe als HEX-Wert
+        // Set course color as HEX value for AUTOMATIC events
         const eventsWithColor = data.map((event: CalendarEvent) => {
           if (event.type === "AUTOMATIC" && event.courseId && courses.length > 0) {
             const course = courses.find(c => c.id === event.courseId)
             if (course && course.color) {
-              // Nutze das Mapping, um immer einen HEX-Wert zu bekommen
+              // Use mapping to always get a HEX value
               return { ...event, color: colorHexMap[course.color] || "#3b82f6" }
             }
           }
           return event
         })
         setEvents(eventsWithColor)
-        console.log("Geladene Events:", eventsWithColor)
+        console.log("Loaded events:", eventsWithColor)
       })
       .catch(() => setEvents([]))
   }, [isLoaded, isSignedIn, courses])
@@ -105,28 +105,28 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
     if (!scrollToEventRequest) return;
     scrollRequestRef.current = scrollToEventRequest;
     const eventDate = new Date(scrollToEventRequest.startTime);
-    // Prüfe, ob Termin in aktueller Woche liegt
+    // Check if appointment is in current week
     const weekStart = new Date(currentWeek);
     weekStart.setDate(currentWeek.getDate() - currentWeek.getDay());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     if (eventDate < weekStart || eventDate > weekEnd) {
-      // Setze Woche auf die des Events
+      // Set week to the event's week
       const newWeek = new Date(eventDate);
       newWeek.setDate(eventDate.getDate() - eventDate.getDay());
       setCurrentWeek(newWeek);
       return;
     }
-    // Nach Rendern scrollen
+    // Scroll after rendering
     setTimeout(() => {
       const id = `event-${btoa(encodeURIComponent(scrollToEventRequest.name + '_' + scrollToEventRequest.startTime))}`;
       const el = document.getElementById(id);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         el.classList.add('ring-2', 'ring-red-500');
-        // Hintergrund dunkler machen
+        // Make background darker
         const origBg = el.style.backgroundColor;
-        el.style.backgroundColor = 'rgba(0, 40, 120, 0.85)'; // dunkleres Blau, alternativ: per Filter
+        el.style.backgroundColor = 'rgba(0, 40, 120, 0.85)'; // darker blue, alternatively: via filter
         setTimeout(() => {
           el.classList.remove('ring-2', 'ring-red-500');
           el.style.backgroundColor = origBg;
@@ -161,7 +161,7 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
     setCurrentWeek(newDate)
   }
 
-  // Hilfsfunktion: Events für einen Tag filtern
+  // Helper function: Filter events for a day
   const getEventsForDay = (date: Date) => {
     return events.filter(event => {
       const eventStart = new Date(event.startTime)
@@ -173,32 +173,32 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
     })
   }
 
-  // Hilfsfunktion für robusten Tagesvergleich (ohne Uhrzeit)
+  // Helper function for robust day comparison (without time)
   function isSameDay(a: Date, b: Date) {
     return a.getFullYear() === b.getFullYear() &&
       a.getMonth() === b.getMonth() &&
       a.getDate() === b.getDate();
   }
 
-  // Hilfsfunktion: Prozentuale Position und Höhe für einen Event-Block berechnen (00:00-24:00)
+  // Helper function: Calculate percentage position and height for an event block (00:00-24:00)
   const getEventBlockStyle = (event: CalendarEvent) => {
-    const dayStart = 0 // 00:00 in Minuten
-    const dayEnd = 24 * 60 // 24:00 in Minuten
+    const dayStart = 0 // 00:00 in minutes
+    const dayEnd = 24 * 60 // 24:00 in minutes
     const eventStart = new Date(event.startTime)
     const eventEnd = new Date(event.endTime)
     const startMinutes = eventStart.getHours() * 60 + eventStart.getMinutes()
     const endMinutes = eventEnd.getHours() * 60 + eventEnd.getMinutes()
-    // Begrenze auf den sichtbaren Bereich
+    // Limit to visible area
     const topMinutes = Math.max(startMinutes, dayStart)
     const bottomMinutes = Math.min(endMinutes, dayEnd)
     const totalMinutes = dayEnd - dayStart
     if (bottomMinutes <= dayStart || topMinutes >= dayEnd) return null;
     const top = ((topMinutes - dayStart) / totalMinutes) * 100
     let height = ((bottomMinutes - topMinutes) / totalMinutes) * 100
-    // Mindestens 2px Höhe
+    // Minimum 2px height
     const minHeightPercent = (2 / 768) * 100
     if (height < minHeightPercent) height = minHeightPercent
-    // Farbcode bestimmen
+    // Determine color code
     let bgColor = "#3b82f6"; // Default: blue
     if (event.color) {
       if (event.color.startsWith("#")) {
@@ -259,7 +259,7 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
             background: 'transparent',
           }}
         >
-          {/* Kopfzeile */}
+          {/* Header */}
           <div className="bg-transparent" style={{ gridColumn: '1 / span 8', gridRow: 1, borderBottom: '1.5px solid var(--border)' }}></div>
           {daysToShow.map((date, idx) => (
             <div
@@ -272,7 +272,7 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
             </div>
           ))}
 
-          {/* Stundenraster */}
+          {/* Hour grid */}
           {timeSlots.map((time, rowIdx) => (
             <React.Fragment key={rowIdx}>
               <div
@@ -302,7 +302,7 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
             </React.Fragment>
           ))}
 
-          {/* Event-Overlay */}
+          {/* Event overlay */}
           {daysToShow.map((date, colIdx) => (
             <div
               key={date.toISOString() + '-overlay'}
@@ -317,39 +317,39 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
               {events.map((event, idx) => {
                 const eventStart = new Date(event.startTime)
                 const eventEnd = new Date(event.endTime)
-                // Prüfe, ob das Event an diesem Tag sichtbar ist
+                // Check if event is visible on this day
                 const dayStart = new Date(date)
                 dayStart.setHours(0, 0, 0, 0)
                 const dayEnd = new Date(date)
                 dayEnd.setHours(23, 59, 59, 999)
                 if (eventEnd <= dayStart || eventStart >= dayEnd) return null
-                // Berechne top und height in Prozent für diesen Tag
+                // Calculate top and height in percentage for this day
                 let top = 0, height = 0
                 if (isSameDay(eventStart, date) && isSameDay(eventEnd, date)) {
-                  // Start- und Endtag gleich (eintägig)
+                  // Start and end day same (single day)
                   top = (eventStart.getHours() * 60 + eventStart.getMinutes()) / (24 * 60) * 100
                   height = ((eventEnd.getTime() - eventStart.getTime()) / (1000 * 60)) / (24 * 60) * 100
                 } else if (isSameDay(eventStart, date)) {
-                  // Starttag
+                  // Start day
                   top = (eventStart.getHours() * 60 + eventStart.getMinutes()) / (24 * 60) * 100
                   height = (24 * 60 - (eventStart.getHours() * 60 + eventStart.getMinutes())) / (24 * 60) * 100
                 } else if (isSameDay(eventEnd, date)) {
-                  // Endtag
+                  // End day
                   top = 0
                   height = ((eventEnd.getHours() * 60 + eventEnd.getMinutes())) / (24 * 60) * 100
                 } else if (eventStart < dayStart && eventEnd > dayEnd) {
-                  // Zwischentag
+                  // Middle day
                   top = 0
                   height = 100
                 } else {
-                  // Fallback: voller Tag
+                  // Fallback: full day
                   top = 0
                   height = 100
                 }
-                // Mindestens 2px Höhe
+                // Minimum 2px height
                 const minHeightPercent = (2 / (24 * 48)) * 100
                 if (height < minHeightPercent) height = minHeightPercent
-                const showOnlyTitle = height < 6; // ca. 6% entspricht ~28px bei 480px Höhe
+                const showOnlyTitle = height < 6; // ca. 6% corresponds to ~28px at 480px height
                 return (
                   <Dialog key={event.name + event.startTime + idx + '-' + colIdx}>
                     <DialogTrigger asChild>
@@ -373,7 +373,7 @@ export function WeeklyCalendar({ onlyTwoDays = false, scrollToEventRequest, cour
                           zIndex: 2,
                           boxShadow: undefined,
                           minHeight: '2px',
-                          pointerEvents: 'auto', // Dialog bleibt klickbar
+                          pointerEvents: 'auto', // Dialog remains clickable
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'center',

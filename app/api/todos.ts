@@ -11,7 +11,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 export const createTodo = async (text: string): Promise<ToDo | null> => {
   try {
     const token = await window.Clerk?.session?.getToken();
-    if (!token) throw new Error('Nicht eingeloggt');
+    if (!token) throw new Error('Not logged in');
     const response = await axios.post(
       `${API_BASE_URL}/api/todos/create`,
       { text },
@@ -24,7 +24,7 @@ export const createTodo = async (text: string): Promise<ToDo | null> => {
     );
     return response.data;
   } catch (error) {
-    console.error('Fehler beim Anlegen des ToDos:', error);
+    console.error('Error creating todo:', error);
     return null;
   }
 };
@@ -32,7 +32,7 @@ export const createTodo = async (text: string): Promise<ToDo | null> => {
 export const getTodos = async (): Promise<ToDo[]> => {
   try {
     const token = await window.Clerk?.session?.getToken();
-    if (!token) throw new Error('Nicht eingeloggt');
+    if (!token) throw new Error('Not logged in');
     const response = await axios.get(
       `${API_BASE_URL}/api/todos/my`,
       {
@@ -43,7 +43,7 @@ export const getTodos = async (): Promise<ToDo[]> => {
     );
     return response.data;
   } catch (error) {
-    console.error('Fehler beim Laden der ToDos:', error);
+    console.error('Error loading todos:', error);
     return [];
   }
 };
@@ -51,7 +51,7 @@ export const getTodos = async (): Promise<ToDo[]> => {
 export const updateTodo = async (id: string, text: string): Promise<boolean> => {
   try {
     const token = await window.Clerk?.session?.getToken();
-    if (!token) throw new Error('Nicht eingeloggt');
+    if (!token) throw new Error('Not logged in');
     await axios.put(
       `${API_BASE_URL}/api/todos/edit/${id}`,
       { text },
@@ -64,7 +64,7 @@ export const updateTodo = async (id: string, text: string): Promise<boolean> => 
     );
     return true;
   } catch (error) {
-    console.error('Fehler beim Aktualisieren des ToDos:', error);
+    console.error('Error updating todo:', error);
     return false;
   }
 };
@@ -72,7 +72,7 @@ export const updateTodo = async (id: string, text: string): Promise<boolean> => 
 export const deleteTodo = async (id: string): Promise<boolean> => {
   try {
     const token = await window.Clerk?.session?.getToken();
-    if (!token) throw new Error('Nicht eingeloggt');
+    if (!token) throw new Error('Not logged in');
     await axios.delete(
       `${API_BASE_URL}/api/todos/delete/${id}`,
       {
@@ -83,7 +83,7 @@ export const deleteTodo = async (id: string): Promise<boolean> => {
     );
     return true;
   } catch (error) {
-    console.error('Fehler beim Löschen des ToDos:', error);
+    console.error('Error deleting todo:', error);
     return false;
   }
 }; 
